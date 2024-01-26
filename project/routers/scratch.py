@@ -62,5 +62,5 @@ async def read_from_scratch(
 
     return StreamingResponse(
         response,
-        media_type=response.getheader("Content-Type", "application/octet-stream"),
+        media_type=response.headers.get("Content-Type", "application/octet-stream"),
     )

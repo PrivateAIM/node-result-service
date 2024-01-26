@@ -1,4 +1,4 @@
-from pydantic import BaseModel, HttpUrl
+from pydantic import BaseModel, HttpUrl, ConfigDict
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 
@@ -9,14 +9,23 @@ class MinioConnection(BaseModel):
     region: str = "us-east-1"
     use_ssl: bool = True
 
+    model_config = ConfigDict(frozen=True)
+
 
 class MinioBucketConfig(MinioConnection):
     bucket: str
 
 
+class OIDCConfig(BaseModel):
+    certs_url: HttpUrl
+    client_id_claim_name: str = "client_id"
+
+    model_config = ConfigDict(frozen=True)
+
+
 class Settings(BaseSettings):
     minio: MinioBucketConfig
-    openid_certs_url: HttpUrl
+    oidc: OIDCConfig
 
     model_config = SettingsConfigDict(
         frozen=True,

@@ -1,10 +1,11 @@
 import re
+import uuid
 
 from starlette import status
 
 from project.routers.scratch import ScratchUploadResponse
 from tests.common.auth import BearerAuth, issue_client_access_token
-from tests.common.rest import next_random_bytes, wrap_bytes_for_request
+from tests.common.rest import next_random_bytes, wrap_bytes_for_request, detail_of
 
 
 def test_200_submit_receive_from_scratch(test_client, rng):
@@ -32,3 +33,14 @@ def test_200_submit_receive_from_scratch(test_client, rng):
 
     assert r.status_code == status.HTTP_200_OK
     assert r.read() == blob
+
+
+def test_whatever(test_client):
+    rand_uuid = str(uuid.uuid4())
+    r = test_client.get(
+        f"/scratch/{rand_uuid}",
+        auth=BearerAuth(issue_client_access_token()),
+    )
+
+    assert r.status_code == status.HTTP_404_NOT_FOUND
+    assert detail_of(r) == f"Object with ID {rand_uuid} does not exist"

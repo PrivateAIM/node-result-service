@@ -1,9 +1,10 @@
 import uuid
 from typing import Annotated
 
-from fastapi import APIRouter, UploadFile, Depends
-from minio import Minio
+from fastapi import APIRouter, UploadFile, Depends, HTTPException
+from minio import Minio, S3Error
 from pydantic import BaseModel, HttpUrl
+from starlette import status
 from starlette.requests import Request
 from starlette.responses import StreamingResponse
 
@@ -55,9 +56,21 @@ async def read_from_scratch(
     settings: Annotated[Settings, Depends(get_settings)],
     minio: Annotated[Minio, Depends(get_minio)],
 ):
-    response = minio.get_object(
-        settings.minio.bucket, f"scratch/{client_id}/{object_id}"
-    )
+    try:
+        response = minio.get_object(
+            settings.minio.bucket, f"scratch/{client_id}/{object_id}"
+        )
+    except S3Error as e:
+        if e.code == "NoSuchKey":
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail=f"Object with ID {object_id} does not exist",
+            )
+
+        raise HTTPException(
+            status_code=status.HTTP_502_BAD_GATEWAY,
+            detail="Unexpected error from object store",
+        )
 
     return StreamingResponse(
         response,

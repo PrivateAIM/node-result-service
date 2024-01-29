@@ -9,10 +9,10 @@ from tests.common.rest import next_random_bytes, wrap_bytes_for_request, detail_
 
 
 def test_200_submit_receive_from_scratch(test_client, rng):
-    client_id, blob = "flame", next_random_bytes(rng)
+    blob = next_random_bytes(rng)
     r = test_client.put(
         "/scratch",
-        auth=BearerAuth(issue_client_access_token(client_id)),
+        auth=BearerAuth(issue_client_access_token()),
         files=wrap_bytes_for_request(blob),
     )
 
@@ -28,7 +28,7 @@ def test_200_submit_receive_from_scratch(test_client, rng):
 
     r = test_client.get(
         model.url.path,
-        auth=BearerAuth(issue_client_access_token(client_id)),
+        auth=BearerAuth(issue_client_access_token()),
     )
 
     assert r.status_code == status.HTTP_200_OK

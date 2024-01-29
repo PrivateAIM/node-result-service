@@ -1,3 +1,4 @@
+import logging
 import uuid
 from typing import Annotated
 
@@ -12,6 +13,7 @@ from project.config import Settings
 from project.dependencies import get_settings, get_minio, get_client_id
 
 router = APIRouter()
+logger = logging.getLogger(__name__)
 
 
 class ScratchUploadResponse(BaseModel):
@@ -61,6 +63,8 @@ async def read_from_scratch(
             settings.minio.bucket, f"scratch/{client_id}/{object_id}"
         )
     except S3Error as e:
+        logger.exception(f"Could not get object `{object_id}` for client `{client_id}`")
+
         if e.code == "NoSuchKey":
             raise HTTPException(
                 status_code=status.HTTP_404_NOT_FOUND,

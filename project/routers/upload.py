@@ -1,3 +1,4 @@
+import logging
 import uuid
 from typing import Annotated
 
@@ -9,6 +10,7 @@ from project.config import Settings
 from project.dependencies import get_minio, get_settings, get_client_id
 
 router = APIRouter()
+logger = logging.getLogger(__name__)
 
 
 async def __bg_upload_to_remote(
@@ -16,10 +18,13 @@ async def __bg_upload_to_remote(
     bucket_name: str,
     object_name: str,
 ):
-    obj = local_minio.get_object(bucket_name, object_name)
-    print(f"uploading {object_name} ({obj.getheader('Content-Type')}) to remote")
+    logger.info(
+        "Dummy call to __bg_upload_to_remote for bucket %s and object",
+        bucket_name,
+        object_name,
+    )
+    local_minio.get_object(bucket_name, object_name)
     local_minio.remove_object(bucket_name, object_name)
-    print("object has been deleted")
 
 
 @router.put(

@@ -1,0 +1,34 @@
+import re
+
+from starlette import status
+
+from project.routers.scratch import ScratchUploadResponse
+from tests.common.auth import BearerAuth, issue_client_access_token
+from tests.common.rest import next_random_bytes, wrap_bytes_for_request
+
+
+def test_200_submit_receive_from_scratch(test_client, rng):
+    client_id, blob = "flame", next_random_bytes(rng)
+    r = test_client.put(
+        "/scratch",
+        auth=BearerAuth(issue_client_access_token(client_id)),
+        files=wrap_bytes_for_request(blob),
+    )
+
+    assert r.status_code == status.HTTP_200_OK
+
+    # check that the response contains a path to a valid resource
+    model = ScratchUploadResponse(**r.json())
+    path_regex = (
+        r"/scratch/[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}"
+    )
+
+    assert re.fullmatch(path_regex, model.url.path) is not None
+
+    r = test_client.get(
+        model.url.path,
+        auth=BearerAuth(issue_client_access_token(client_id)),
+    )
+
+    assert r.status_code == status.HTTP_200_OK
+    assert r.read() == blob

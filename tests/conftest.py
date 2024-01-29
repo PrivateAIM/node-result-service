@@ -1,3 +1,4 @@
+import random
 import threading
 import urllib.parse
 from http.server import BaseHTTPRequestHandler, HTTPServer
@@ -72,3 +73,8 @@ def setup_jwks_endpoint():
     yield
 
     httpd.shutdown()
+
+
+@pytest.fixture
+def rng():
+    return random.Random(727)

@@ -1,30 +1,31 @@
-import secrets
+import uuid
 from datetime import datetime, timezone, timedelta
 
+import pytest
 from starlette import status
 
 from tests.common.auth import BearerAuth, issue_client_access_token, issue_access_token
 from tests.common.rest import detail_of
 
-
-def test_index_200(test_client):
-    client_id = secrets.token_hex(16)
-    r = test_client.get("/", auth=BearerAuth(issue_client_access_token(client_id)))
-
-    assert r.status_code == status.HTTP_200_OK
-    assert r.json()["client_id"] == client_id
+endpoints = [
+    ("GET", f"/scratch/{uuid.uuid4()}"),  # UUID can be arbitrary for auth checks
+    ("PUT", "/scratch"),
+]
 
 
-def test_index_403_no_auth_header(test_client):
-    r = test_client.get("/")
+@pytest.mark.parametrize("method,path", endpoints)
+def test_403_no_auth_header(test_client, method, path):
+    r = test_client.request(method, path)
 
     assert r.status_code == status.HTTP_403_FORBIDDEN
     assert detail_of(r) == "Not authenticated"
 
 
-def test_index_403_expired(test_client):
-    r = test_client.get(
-        "/",
+@pytest.mark.parametrize("method,path", endpoints)
+def test_403_jwt_expired(test_client, method, path):
+    r = test_client.request(
+        method,
+        path,
         auth=BearerAuth(
             issue_client_access_token(
                 issued_at=datetime.now(tz=timezone.utc) - timedelta(hours=1),
@@ -37,8 +38,9 @@ def test_index_403_expired(test_client):
     assert detail_of(r) == "JWT is malformed"
 
 
-def test_index_403_no_client_id_claim(test_client):
-    r = test_client.get("/", auth=BearerAuth(issue_access_token()))
+@pytest.mark.parametrize("method,path", endpoints)
+def test_403_no_client_id_claim(test_client, method, path):
+    r = test_client.request(method, path, auth=BearerAuth(issue_access_token()))
 
     assert r.status_code == status.HTTP_403_FORBIDDEN
     assert detail_of(r) == "JWT is malformed"

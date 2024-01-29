@@ -48,7 +48,10 @@ def test_app():
 
 @pytest.fixture(scope="package")
 def test_client(test_app):
-    return TestClient(test_app)
+    # see https://fastapi.tiangolo.com/advanced/testing-events/
+    # this is to ensure that the lifespan events are called
+    with TestClient(test_app) as test_client:
+        yield test_client
 
 
 @pytest.fixture(scope="package", autouse=True)

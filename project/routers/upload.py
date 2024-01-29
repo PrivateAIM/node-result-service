@@ -6,12 +6,12 @@ from minio import Minio
 from starlette import status
 
 from project.config import Settings
-from project.dependencies import get_minio, get_settings
+from project.dependencies import get_minio, get_settings, get_client_id
 
 router = APIRouter()
 
 
-async def upload_to_remote(
+async def __bg_upload_to_remote(
     local_minio: Minio,
     bucket_name: str,
     object_name: str,
@@ -23,18 +23,18 @@ async def upload_to_remote(
 
 
 @router.put(
-    "/{project_id}",
+    "/",
     status_code=status.HTTP_202_ACCEPTED,
 )
-async def enqueue_for_upload(
-    project_id: uuid.UUID,
+async def upload_to_remote(
+    client_id: Annotated[str, Depends(get_client_id)],
     file: UploadFile,
     background_tasks: BackgroundTasks,
     settings: Annotated[Settings, Depends(get_settings)],
     minio: Annotated[Minio, Depends(get_minio)],
 ):
     object_id = str(uuid.uuid4())
-    object_name = f"upload/{project_id}/{object_id}"
+    object_name = f"upload/{client_id}/{object_id}"
 
     minio.put_object(
         settings.minio.bucket,
@@ -45,7 +45,7 @@ async def enqueue_for_upload(
     )
 
     background_tasks.add_task(
-        upload_to_remote,
+        __bg_upload_to_remote,
         minio,
         settings.minio.bucket,
         object_name,

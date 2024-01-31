@@ -48,5 +48,8 @@ jobs:
         # not possible to use official minio image since it requires commands to start up
         # which gh doesn't support :(
         image: bitnami/minio:2024.1.16
+        env:
+          MINIO_ROOT_USER: ${{env.MINIO_ROOT_USER}}
+          MINIO_ROOT_PASSWORD: ${{env.MINIO_ROOT_PASSWORD}}
         ports:
           - 9000:9000

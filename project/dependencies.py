@@ -11,7 +11,7 @@ from jwcrypto import jwk, jwt, common
 from minio import Minio
 from starlette import status
 
-from project.config import Settings
+from project.config import Settings, MinioBucketConfig
 
 security = HTTPBearer()
 logger = logging.getLogger(__name__)
@@ -40,11 +40,7 @@ def get_auth_jwks(settings: Annotated[Settings, Depends(get_settings)]):
     return jwk.JWKSet.from_json(jwks_payload)
 
 
-def get_minio(
-    settings: Annotated[Settings, Depends(get_settings)],
-):
-    minio = settings.minio
-
+def __create_minio_from_config(minio: MinioBucketConfig):
     return Minio(
         minio.endpoint,
         access_key=minio.access_key,
@@ -52,6 +48,18 @@ def get_minio(
         region=minio.region,
         secure=minio.use_ssl,
     )
+
+
+def get_local_minio(
+    settings: Annotated[Settings, Depends(get_settings)],
+):
+    return __create_minio_from_config(settings.minio)
+
+
+def get_remote_minio(
+    settings: Annotated[Settings, Depends(get_settings)],
+):
+    return __create_minio_from_config(settings.remote)
 
 
 def get_client_id(

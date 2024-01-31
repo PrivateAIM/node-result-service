@@ -25,6 +25,7 @@ class OIDCConfig(BaseModel):
 
 class Settings(BaseSettings):
     minio: MinioBucketConfig
+    remote: MinioBucketConfig
     oidc: OIDCConfig
 
     model_config = SettingsConfigDict(

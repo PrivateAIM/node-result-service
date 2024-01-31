@@ -10,7 +10,7 @@ from starlette.requests import Request
 from starlette.responses import StreamingResponse
 
 from project.config import Settings
-from project.dependencies import get_settings, get_minio, get_client_id
+from project.dependencies import get_settings, get_local_minio, get_client_id
 
 router = APIRouter()
 logger = logging.getLogger(__name__)
@@ -28,7 +28,7 @@ async def upload_to_scratch(
     client_id: Annotated[str, Depends(get_client_id)],
     file: UploadFile,
     settings: Annotated[Settings, Depends(get_settings)],
-    minio: Annotated[Minio, Depends(get_minio)],
+    minio: Annotated[Minio, Depends(get_local_minio)],
     request: Request,
 ):
     object_id = str(uuid.uuid4())
@@ -56,7 +56,7 @@ async def read_from_scratch(
     client_id: Annotated[str, Depends(get_client_id)],
     object_id: uuid.UUID,
     settings: Annotated[Settings, Depends(get_settings)],
-    minio: Annotated[Minio, Depends(get_minio)],
+    minio: Annotated[Minio, Depends(get_local_minio)],
 ):
     try:
         response = minio.get_object(

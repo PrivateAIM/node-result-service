@@ -1,0 +1,37 @@
+services:
+
+  minio-local:
+    image: quay.io/minio/minio:RELEASE.2024-01-16T16-07-38Z
+    volumes:
+      - minio-data:/mnt/data
+      - minio-config:/etc/config
+    environment:
+      - MINIO_VOLUMES=/mnt/data
+      - MINIO_CONFIG_ENV_FILE=/etc/config/.env
+    env_file:
+      - .env
+    ports:
+      - "9000:9000"  # s3 api
+      - "9001:9001"  # web console
+    command: [ "server", "--address", ":9000", "--console-address", ":9001" ]
+
+  minio-remote:
+    image: quay.io/minio/minio:RELEASE.2024-01-16T16-07-38Z
+    volumes:
+      - minio-remote-data:/mnt/data
+      - minio-remote-config:/etc/config
+    environment:
+      - MINIO_VOLUMES=/mnt/data
+      - MINIO_CONFIG_ENV_FILE=/etc/config/.env
+    env_file:
+      - .env
+    ports:
+      - "9002:9002"  # s3 api
+      - "9003:9003"  # web console
+    command: [ "server", "--address", ":9002", "--console-address", ":9003" ]
+
+volumes:
+  minio-data:
+  minio-config:
+  minio-remote-data:
+  minio-remote-config:

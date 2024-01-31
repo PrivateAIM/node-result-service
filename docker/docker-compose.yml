@@ -13,7 +13,7 @@ services:
     ports:
       - "9000:9000"  # s3 api
       - "9001:9001"  # web console
-    command: [ "server", "--console-address", ":9001" ]
+    command: [ "server", "--address", ":9000", "--console-address", ":9001" ]
 
 volumes:
   minio-data:

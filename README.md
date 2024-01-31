@@ -6,7 +6,7 @@ $ flame-result server --reload
 
 ## Running tests
 
-Integration tests require a MinIO instance.
+Integration tests require two MinIO instances.
 Configuration is passed in using environment variables.
 The names are the same, except they are prepended with `PYTEST__`.
 At least, the MinIO endpoint, access key, secret key and bucket name need to be provided.
@@ -16,7 +16,11 @@ If unspecified, the region is set to `us-east-1` and HTTPS is disabled.
 $ PYTEST__MINIO__ENDPOINT="localhost:9000" \
     PYTEST__MINIO__ACCESS_KEY="admin" \
     PYTEST__MINIO__SECRET_KEY="s3cr3t_p4ssw0rd" \
-    PYTEST__MINIO__BUCKET="flame" pytest
+    PYTEST__MINIO__BUCKET="flame" \
+    PYTEST__REMOTE__ENDPOINT="localhost:9002" \
+    PYTEST__REMOTE__ACCESS_KEY="admin" \
+    PYTEST__REMOTE__SECRET_KEY="s3cr3t_p4ssw0rd" \
+    PYTEST__REMOTE__BUCKET="upload" pytest
 ```
 
 OIDC does not need to be configured.

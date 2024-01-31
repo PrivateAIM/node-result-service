@@ -10,6 +10,7 @@ from tests.common.rest import detail_of
 endpoints = [
     ("GET", f"/scratch/{uuid.uuid4()}"),  # UUID can be arbitrary for auth checks
     ("PUT", "/scratch"),
+    ("PUT", "/upload"),
 ]
 
 

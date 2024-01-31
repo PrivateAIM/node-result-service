@@ -29,9 +29,9 @@ jobs:
       - name: Install dependencies
         run: poetry install
       - name: Create local bucket
-        run: flame-result migrate --no-verify "$MINIO_SERVER_ACCESS_KEY" "$MINIO_SERVER_SECRET_KEY" "$MINIO_LOCAL_BUCKET_NAME"
+        run: poetry run flame-result migrate --no-verify "$MINIO_SERVER_ACCESS_KEY" "$MINIO_SERVER_SECRET_KEY" "$MINIO_LOCAL_BUCKET_NAME"
       - name: Create remote bucket
-        run: flame-result migrate --no-verify "$MINIO_SERVER_ACCESS_KEY" "$MINIO_SERVER_SECRET_KEY" "$MINIO_REMOTE_BUCKET_NAME"
+        run: poetry run flame-result migrate --no-verify "$MINIO_SERVER_ACCESS_KEY" "$MINIO_SERVER_SECRET_KEY" "$MINIO_REMOTE_BUCKET_NAME"
       - name: Run tests
         run: PYTEST__MINIO__ACCESS_KEY="$MINIO_SERVER_ACCESS_KEY" \
           PYTEST__MINIO__SECRET_KEY="$MINIO_SERVER_SECRET_KEY" \
@@ -41,7 +41,7 @@ jobs:
           PYTEST__REMOTE__SECRET_KEY="$MINIO_SERVER_SECRET_KEY" \
           PYTEST__REMOTE__BUCKET="$MINIO_REMOTE_BUCKET_NAME" \
           PYTEST__REMOTE__ENDPOINT="localhost:9000" \
-          pytest
+          poetry run pytest
 
     services:
       minio:

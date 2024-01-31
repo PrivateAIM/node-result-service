@@ -1,0 +1,61 @@
+name: Integration test
+
+env:
+  MINIO_ROOT_USER: admin
+  MINIO_ROOT_PASSWORD: s3cr3t_p4ssw0rd
+  MINIO_LOCAL_BUCKET_NAME: flame
+  MINIO_REMOTE_BUCKET_NAME: upload
+
+on:
+  push:
+    branches:
+      - main
+  pull_request:
+    branches:
+      - main
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+      - name: Install Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: 3.11
+      - name: Install Poetry
+        run: python -m pip install poetry
+      - name: Install dependencies
+        run: poetry install
+      - name: Create local bucket
+        run: poetry run flame-result migrate --no-verify "$MINIO_ROOT_USER" "$MINIO_ROOT_PASSWORD" "$MINIO_LOCAL_BUCKET_NAME"
+      - name: Create remote bucket
+        run: poetry run flame-result migrate --no-verify "$MINIO_ROOT_USER" "$MINIO_ROOT_PASSWORD" "$MINIO_REMOTE_BUCKET_NAME"
+      - name: Run tests
+        run: poetry run pytest
+        env:
+          PYTEST__MINIO__ACCESS_KEY: ${{env.MINIO_ROOT_USER}}
+          PYTEST__MINIO__SECRET_KEY: ${{env.MINIO_ROOT_PASSWORD}}
+          PYTEST__MINIO__BUCKET: ${{env.MINIO_LOCAL_BUCKET_NAME}}
+          PYTEST__MINIO__ENDPOINT: localhost:9000
+          PYTEST__REMOTE__ACCESS_KEY: ${{env.MINIO_ROOT_USER}}
+          PYTEST__REMOTE__SECRET_KEY: ${{env.MINIO_ROOT_PASSWORD}}
+          PYTEST__REMOTE__BUCKET: ${{env.MINIO_REMOTE_BUCKET_NAME}}
+          PYTEST__REMOTE__ENDPOINT: localhost:9000
+
+    services:
+      minio:
+        # not possible to use official minio image since it requires commands to start up
+        # which gh doesn't support :(
+        image: bitnami/minio:2024.1.16
+        env:
+          MINIO_ROOT_USER: ${{env.MINIO_ROOT_USER}}
+          MINIO_ROOT_PASSWORD: ${{env.MINIO_ROOT_PASSWORD}}
+        ports:
+          - 9000:9000
+        options: >-
+          --health-cmd "curl -I http://localhost:9000/minio/health/live"
+          --health-interval 2s
+          --health-timeout 5s
+          --health-retries 5

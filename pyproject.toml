@@ -5,6 +5,7 @@ description = ""
 authors = ["Maximilian Jugl <Maximilian.Jugl@medizin.uni-leipzig.de>"]
 readme = "README.md"
 packages = [{ include = "project" }]
+license = "Apache-2.0"
 
 [tool.poetry.scripts]
 flame-result = "project.main:cli"

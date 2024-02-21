@@ -33,8 +33,6 @@ jobs:
           images: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}
           tags: |
             type=sha
-            type=ref,event=branch
-            type=ref,event=tag
       - name: Build and push Docker image
         uses: docker/build-push-action@v5
         with:

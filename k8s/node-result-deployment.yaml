@@ -1,0 +1,23 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: node-result-deployment
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: node-result
+  template:
+    metadata:
+      labels:
+        app: node-result
+    spec:
+      containers:
+        - name: node-result-service
+          image: ghcr.io/privateaim/node-result-service:sha-8de419a
+          imagePullPolicy: IfNotPresent
+          ports:
+            - containerPort: 8080
+              name: http-result-srv
+      imagePullSecrets:
+        - name: dockerconfigjson-github-com

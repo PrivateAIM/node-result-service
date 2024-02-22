@@ -28,6 +28,8 @@ $ kubectl apply -f ghcr-secret.yaml
 To deploy, simply run the following commands.
 
 ```
+$ kubectl apply -f ./minio-deployment.yaml
+$ kubectl apply -f ./minio-service.yaml
 $ kubectl apply -f ./node-result-deployment.yaml
 $ kubectl apply -f ./node-result-service.yaml
 ```

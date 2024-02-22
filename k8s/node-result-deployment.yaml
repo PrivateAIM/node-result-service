@@ -19,5 +19,16 @@ spec:
           ports:
             - containerPort: 8080
               name: http-result-srv
+          env:
+            - name: MINIO__ENDPOINT
+              value: local-minio
+            - name: MINIO__ACCESS_KEY
+              value: admin
+            - name: MINIO__SECRET_KEY
+              value: s3cr3t_p4ssw0rd
+            - name: MINIO__USE_SSL
+              value: false
+            - name: MINIO__BUCKET
+              value: flame
       imagePullSecrets:
         - name: dockerconfigjson-github-com

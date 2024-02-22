@@ -14,7 +14,7 @@ spec:
     spec:
       containers:
         - name: node-result-service
-          image: ghcr.io/privateaim/node-result-service:sha-8de419a
+          image: ghcr.io/privateaim/node-result-service:sha-b75b067
           imagePullPolicy: IfNotPresent
           ports:
             - containerPort: 8080
@@ -27,8 +27,20 @@ spec:
             - name: MINIO__SECRET_KEY
               value: s3cr3t_p4ssw0rd
             - name: MINIO__USE_SSL
-              value: false
+              value: "false"
             - name: MINIO__BUCKET
               value: flame
+          startupProbe:
+            httpGet:
+              path: /healthz
+              port: http-result-srv
+            failureThreshold: 5
+            periodSeconds: 5
+          livenessProbe:
+            httpGet:
+              path: /healthz
+              port: http-result-srv
+            failureThreshold: 3
+            periodSeconds: 10
       imagePullSecrets:
         - name: dockerconfigjson-github-com

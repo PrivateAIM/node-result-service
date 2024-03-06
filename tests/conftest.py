@@ -96,8 +96,12 @@ def rng():
 
 @pytest.fixture(scope="package")
 def hub_access_token():
-    return AuthWrapper(PYTEST_HUB_AUTH_BASE_URL).acquire_access_token(
-        PYTEST_HUB_AUTH_USERNAME, PYTEST_HUB_AUTH_PASSWORD
+    return (
+        AuthWrapper(PYTEST_HUB_AUTH_BASE_URL)
+        .acquire_access_token_with_password(
+            PYTEST_HUB_AUTH_USERNAME, PYTEST_HUB_AUTH_PASSWORD
+        )
+        .access_token
     )
 
 

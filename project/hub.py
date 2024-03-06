@@ -5,6 +5,14 @@ import httpx
 from starlette import status
 
 
+class AccessToken(NamedTuple):
+    access_token: str
+    expires_in: int
+    token_type: str
+    scope: str
+    refresh_token: str
+
+
 class Project(NamedTuple):
     id: str
     name: str
@@ -37,18 +45,25 @@ class AuthWrapper:
     def __init__(self, base_url: str):
         self.base_url = base_url
 
-    def acquire_access_token(self, username: str, password: str) -> str:
-        return (
-            httpx.post(
-                f"{self.base_url}/token",
-                json={
-                    "grant_type": "password",
-                    "username": username,
-                    "password": password,
-                },
-            )
-            .raise_for_status()
-            .json()["access_token"]
+    def acquire_access_token_with_password(
+        self, username: str, password: str
+    ) -> AccessToken:
+        r = httpx.post(
+            f"{self.base_url}/token",
+            json={
+                "grant_type": "password",
+                "username": username,
+                "password": password,
+            },
+        ).raise_for_status()
+        j = r.json()
+
+        return AccessToken(
+            access_token=j["access_token"],
+            expires_in=j["expires_in"],
+            token_type=j["token_type"],
+            scope=j["scope"],
+            refresh_token=j["refresh_token"],
         )
 
 

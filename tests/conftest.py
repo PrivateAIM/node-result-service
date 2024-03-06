@@ -9,7 +9,7 @@ from starlette.testclient import TestClient
 
 from project.config import Settings, MinioBucketConfig, OIDCConfig, HubConfig
 from project.dependencies import get_settings
-from project.hub import AuthWrapper
+from project.hub import AuthWrapper, ApiWrapper
 from project.server import app
 from tests.common.auth import get_oid_test_jwk
 from tests.common.env import (
@@ -99,3 +99,8 @@ def hub_access_token():
     return AuthWrapper(PYTEST_HUB_AUTH_BASE_URL).acquire_access_token(
         PYTEST_HUB_AUTH_USERNAME, PYTEST_HUB_AUTH_PASSWORD
     )
+
+
+@pytest.fixture(scope="package")
+def api(hub_access_token):
+    return ApiWrapper(PYTEST_HUB_API_BASE_URL, hub_access_token)

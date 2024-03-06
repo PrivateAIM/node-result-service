@@ -1,3 +1,4 @@
+from io import BytesIO
 from typing import NamedTuple
 
 import httpx
@@ -78,7 +79,7 @@ class ApiWrapper:
             headers=self.__auth_header(),
             json={
                 "name": name,
-                "project-id": project_id,
+                "project_id": project_id,
             },
         ).raise_for_status()
         j = r.json()
@@ -123,6 +124,31 @@ class ApiWrapper:
             name=j["name"],
             bucket_id=j["bucket_id"],
         )
+
+    def upload_to_bucket(
+        self,
+        bucket_name: str,
+        file_name: str,
+        file: BytesIO,
+        content_type: str = "application/octet-stream",
+    ) -> list[BucketFile]:
+        r = httpx.post(
+            f"{self.base_url}/storage/buckets/{bucket_name}/upload",
+            headers=self.__auth_header(),
+            files={
+                "file": (file_name, file, content_type),
+            },
+        ).raise_for_status()
+        j = r.json()
+
+        return [
+            BucketFile(
+                id=b["id"],
+                name=b["name"],
+                bucket_id=b["bucket_id"],
+            )
+            for b in j["data"]
+        ]
 
     def link_file_to_analysis(
         self, analysis_id: str, bucket_file_id: str, bucket_file_name: str

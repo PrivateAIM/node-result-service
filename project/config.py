@@ -23,7 +23,17 @@ class OIDCConfig(BaseModel):
     model_config = ConfigDict(frozen=True)
 
 
+class HubConfig(BaseModel):
+    api_base_url: HttpUrl = "https://api.privateaim.net"
+    auth_base_url: HttpUrl = "https://auth.privateaim.net"
+    auth_username: str
+    auth_password: str
+
+    model_config = ConfigDict(frozen=True)
+
+
 class Settings(BaseSettings):
+    hub: HubConfig
     minio: MinioBucketConfig
     remote: MinioBucketConfig
     oidc: OIDCConfig

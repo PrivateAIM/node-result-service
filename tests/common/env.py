@@ -10,6 +10,15 @@ def __get_env(env_name: str, val_def: str | None = None) -> str:
     return val
 
 
+PYTEST_HUB_API_BASE_URL = __get_env(
+    "PYTEST__HUB__API_BASE_URL", "https://api.privateaim.net"
+)
+PYTEST_HUB_AUTH_BASE_URL = __get_env(
+    "PYTEST__HUB__AUTH_BASE_URL", "https://auth.privateaim.net"
+)
+PYTEST_HUB_AUTH_USERNAME = __get_env("PYTEST__HUB__AUTH_USERNAME")
+PYTEST_HUB_AUTH_PASSWORD = __get_env("PYTEST__HUB__AUTH_PASSWORD")
+
 PYTEST_OIDC_CERTS_URL = __get_env(
     "PYTEST__OIDC__CERTS_URL", "http://localhost:8001/.well-known/jwks.json"
 )

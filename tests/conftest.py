@@ -8,8 +8,9 @@ from jwcrypto import jwk
 from minio import Minio
 from starlette.testclient import TestClient
 
-from project.config import Settings, MinioBucketConfig, OIDCConfig
+from project.config import Settings, MinioBucketConfig, OIDCConfig, HubConfig
 from project.dependencies import get_settings
+from project.hub import AuthWrapper
 from project.server import app
 from tests.common.auth import get_oid_test_jwk
 from tests.common.env import (
@@ -27,11 +28,21 @@ from tests.common.env import (
     PYTEST_REMOTE_MINIO_REGION,
     PYTEST_REMOTE_MINIO_USE_SSL,
     PYTEST_REMOTE_MINIO_BUCKET,
+    PYTEST_HUB_AUTH_BASE_URL,
+    PYTEST_HUB_AUTH_USERNAME,
+    PYTEST_HUB_AUTH_PASSWORD,
+    PYTEST_HUB_API_BASE_URL,
 )
 
 
 def __get_settings_override() -> Settings:
     return Settings(
+        hub=HubConfig(
+            api_base_url=PYTEST_HUB_API_BASE_URL,
+            auth_base_url=PYTEST_HUB_AUTH_BASE_URL,
+            auth_username=PYTEST_HUB_AUTH_USERNAME,
+            auth_password=PYTEST_HUB_AUTH_PASSWORD,
+        ),
         minio=MinioBucketConfig(
             endpoint=PYTEST_LOCAL_MINIO_ENDPOINT,
             access_key=PYTEST_LOCAL_MINIO_ACCESS_KEY,
@@ -107,3 +118,10 @@ def setup_jwks_endpoint():
 @pytest.fixture
 def rng():
     return random.Random(727)
+
+
+@pytest.fixture(scope="package")
+def hub_access_token():
+    return AuthWrapper(PYTEST_HUB_AUTH_BASE_URL).acquire_access_token(
+        PYTEST_HUB_AUTH_USERNAME, PYTEST_HUB_AUTH_PASSWORD
+    )

@@ -56,12 +56,6 @@ def get_local_minio(
     return __create_minio_from_config(settings.minio)
 
 
-def get_remote_minio(
-    settings: Annotated[Settings, Depends(get_settings)],
-):
-    return __create_minio_from_config(settings.remote)
-
-
 def get_client_id(
     settings: Annotated[Settings, Depends(get_settings)],
     jwks: Annotated[jwk.JWKSet, Depends(get_auth_jwks)],

@@ -35,7 +35,6 @@ class HubConfig(BaseModel):
 class Settings(BaseSettings):
     hub: HubConfig
     minio: MinioBucketConfig
-    remote: MinioBucketConfig
     oidc: OIDCConfig
 
     model_config = SettingsConfigDict(

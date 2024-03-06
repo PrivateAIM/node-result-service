@@ -5,7 +5,6 @@ from http.server import BaseHTTPRequestHandler, HTTPServer
 
 import pytest
 from jwcrypto import jwk
-from minio import Minio
 from starlette.testclient import TestClient
 
 from project.config import Settings, MinioBucketConfig, OIDCConfig, HubConfig
@@ -15,19 +14,13 @@ from project.server import app
 from tests.common.auth import get_oid_test_jwk
 from tests.common.env import (
     PYTEST_OIDC_CERTS_URL,
-    PYTEST_LOCAL_MINIO_ENDPOINT,
-    PYTEST_LOCAL_MINIO_ACCESS_KEY,
-    PYTEST_LOCAL_MINIO_SECRET_KEY,
-    PYTEST_LOCAL_MINIO_REGION,
-    PYTEST_LOCAL_MINIO_USE_SSL,
-    PYTEST_LOCAL_MINIO_BUCKET,
+    PYTEST_MINIO_ENDPOINT,
+    PYTEST_MINIO_ACCESS_KEY,
+    PYTEST_MINIO_SECRET_KEY,
+    PYTEST_MINIO_REGION,
+    PYTEST_MINIO_USE_SSL,
+    PYTEST_MINIO_BUCKET,
     PYTEST_OIDC_CLIENT_ID_CLAIM_NAME,
-    PYTEST_REMOTE_MINIO_ENDPOINT,
-    PYTEST_REMOTE_MINIO_ACCESS_KEY,
-    PYTEST_REMOTE_MINIO_SECRET_KEY,
-    PYTEST_REMOTE_MINIO_REGION,
-    PYTEST_REMOTE_MINIO_USE_SSL,
-    PYTEST_REMOTE_MINIO_BUCKET,
     PYTEST_HUB_AUTH_BASE_URL,
     PYTEST_HUB_AUTH_USERNAME,
     PYTEST_HUB_AUTH_PASSWORD,
@@ -44,20 +37,12 @@ def __get_settings_override() -> Settings:
             auth_password=PYTEST_HUB_AUTH_PASSWORD,
         ),
         minio=MinioBucketConfig(
-            endpoint=PYTEST_LOCAL_MINIO_ENDPOINT,
-            access_key=PYTEST_LOCAL_MINIO_ACCESS_KEY,
-            secret_key=PYTEST_LOCAL_MINIO_SECRET_KEY,
-            region=PYTEST_LOCAL_MINIO_REGION,
-            use_ssl=PYTEST_LOCAL_MINIO_USE_SSL,
-            bucket=PYTEST_LOCAL_MINIO_BUCKET,
-        ),
-        remote=MinioBucketConfig(
-            endpoint=PYTEST_REMOTE_MINIO_ENDPOINT,
-            access_key=PYTEST_REMOTE_MINIO_ACCESS_KEY,
-            secret_key=PYTEST_REMOTE_MINIO_SECRET_KEY,
-            region=PYTEST_REMOTE_MINIO_REGION,
-            use_ssl=PYTEST_REMOTE_MINIO_USE_SSL,
-            bucket=PYTEST_REMOTE_MINIO_BUCKET,
+            endpoint=PYTEST_MINIO_ENDPOINT,
+            access_key=PYTEST_MINIO_ACCESS_KEY,
+            secret_key=PYTEST_MINIO_SECRET_KEY,
+            region=PYTEST_MINIO_REGION,
+            use_ssl=PYTEST_MINIO_USE_SSL,
+            bucket=PYTEST_MINIO_BUCKET,
         ),
         oidc=OIDCConfig(
             certs_url=PYTEST_OIDC_CERTS_URL,
@@ -78,17 +63,6 @@ def test_client(test_app):
     # this is to ensure that the lifespan events are called
     with TestClient(test_app) as test_client:
         yield test_client
-
-
-@pytest.fixture(scope="package")
-def remote_minio():
-    return Minio(
-        endpoint=PYTEST_REMOTE_MINIO_ENDPOINT,
-        access_key=PYTEST_REMOTE_MINIO_ACCESS_KEY,
-        secret_key=PYTEST_REMOTE_MINIO_SECRET_KEY,
-        region=PYTEST_REMOTE_MINIO_REGION,
-        secure=PYTEST_REMOTE_MINIO_USE_SSL != "0",
-    ), PYTEST_REMOTE_MINIO_BUCKET
 
 
 @pytest.fixture(scope="package", autouse=True)

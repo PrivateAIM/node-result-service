@@ -26,6 +26,7 @@ from tests.common.env import (
     PYTEST_HUB_AUTH_PASSWORD,
     PYTEST_HUB_API_BASE_URL,
 )
+from tests.common.helpers import eventually, next_prefixed_name, is_valid_uuid
 
 
 def __get_settings_override() -> Settings:
@@ -108,3 +109,34 @@ def hub_access_token():
 @pytest.fixture(scope="package")
 def api(hub_access_token):
     return ApiWrapper(PYTEST_HUB_API_BASE_URL, hub_access_token)
+
+
+@pytest.fixture(scope="package")
+def analysis_id(api, rng):
+    project_name = next_prefixed_name()
+    project = api.create_project(project_name)
+
+    assert project.name == project_name
+    assert is_valid_uuid(project.id)
+
+    analysis_name = next_prefixed_name()
+    analysis = api.create_analysis(analysis_name, project.id)
+
+    assert analysis.name == analysis_name
+    assert is_valid_uuid(analysis.id)
+
+    for bucket_type in ("result", "code", "temp"):
+
+        def __bucket_exists():
+            bucket_name = f"analysis-{bucket_type}-files.{analysis.id}"
+            bucket = api.get_bucket(bucket_name)
+
+            if bucket is None:
+                return False
+
+            assert bucket.name == bucket_name
+            assert is_valid_uuid(bucket.id)
+
+        assert eventually(__bucket_exists)
+
+    yield analysis.id

@@ -30,8 +30,6 @@ jobs:
         run: poetry install
       - name: Create local bucket
         run: poetry run flame-result migrate --no-verify "$MINIO_ROOT_USER" "$MINIO_ROOT_PASSWORD" "$MINIO_LOCAL_BUCKET_NAME"
-      - name: Create remote bucket
-        run: poetry run flame-result migrate --no-verify "$MINIO_ROOT_USER" "$MINIO_ROOT_PASSWORD" "$MINIO_REMOTE_BUCKET_NAME"
       - name: Run tests
         run: poetry run pytest
         env:
@@ -39,10 +37,8 @@ jobs:
           PYTEST__MINIO__SECRET_KEY: ${{env.MINIO_ROOT_PASSWORD}}
           PYTEST__MINIO__BUCKET: ${{env.MINIO_LOCAL_BUCKET_NAME}}
           PYTEST__MINIO__ENDPOINT: localhost:9000
-          PYTEST__REMOTE__ACCESS_KEY: ${{env.MINIO_ROOT_USER}}
-          PYTEST__REMOTE__SECRET_KEY: ${{env.MINIO_ROOT_PASSWORD}}
-          PYTEST__REMOTE__BUCKET: ${{env.MINIO_REMOTE_BUCKET_NAME}}
-          PYTEST__REMOTE__ENDPOINT: localhost:9000
+          PYTEST__HUB__AUTH_USERNAME: ${{secrets.HUB_AUTH_USERNAME}}
+          PYTEST__HUB__AUTH_PASSWORD: ${{secrets.HUB_AUTH_PASSWORD}}
 
     services:
       minio:

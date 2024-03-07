@@ -1,5 +1,6 @@
 from io import BytesIO
 from typing import NamedTuple
+from urllib.parse import urljoin
 
 import httpx
 from starlette import status
@@ -49,7 +50,7 @@ class AuthWrapper:
         self, username: str, password: str
     ) -> AccessToken:
         r = httpx.post(
-            f"{self.base_url}/token",
+            urljoin(self.base_url, "/token"),
             json={
                 "grant_type": "password",
                 "username": username,
@@ -77,7 +78,7 @@ class ApiWrapper:
 
     def create_project(self, name: str) -> Project:
         r = httpx.post(
-            f"{self.base_url}/projects",
+            urljoin(self.base_url, "/projects"),
             headers=self.__auth_header(),
             json={"name": name},
         ).raise_for_status()
@@ -90,7 +91,7 @@ class ApiWrapper:
 
     def create_analysis(self, name: str, project_id: str) -> Analysis:
         r = httpx.post(
-            f"{self.base_url}/analyses",
+            urljoin(self.base_url, "/analyses"),
             headers=self.__auth_header(),
             json={
                 "name": name,
@@ -106,7 +107,7 @@ class ApiWrapper:
 
     def get_bucket(self, bucket_name: str) -> Bucket | None:
         r = httpx.get(
-            f"{self.base_url}/storage/buckets/{bucket_name}",
+            urljoin(self.base_url, f"/storage/buckets/{bucket_name}"),
             headers=self.__auth_header(),
         )
 
@@ -124,7 +125,7 @@ class ApiWrapper:
 
     def get_bucket_file(self, bucket_file_id: str) -> BucketFile | None:
         r = httpx.get(
-            f"{self.base_url}/storage/bucket-files/{bucket_file_id}",
+            urljoin(self.base_url, f"/storage/bucket-files/{bucket_file_id}"),
             headers=self.__auth_header(),
         ).raise_for_status()
 
@@ -148,7 +149,7 @@ class ApiWrapper:
         content_type: str = "application/octet-stream",
     ) -> list[BucketFile]:
         r = httpx.post(
-            f"{self.base_url}/storage/buckets/{bucket_name}/upload",
+            urljoin(self.base_url, f"/storage/buckets/{bucket_name}/upload"),
             headers=self.__auth_header(),
             files={
                 "file": (file_name, file, content_type),
@@ -169,7 +170,7 @@ class ApiWrapper:
         self, analysis_id: str, bucket_file_id: str, bucket_file_name: str
     ) -> AnalysisFile:
         r = httpx.post(
-            f"{self.base_url}/analysis-files",
+            urljoin(self.base_url, "/analysis-files"),
             headers=self.__auth_header(),
             json={
                 "analysis_id": analysis_id,
@@ -190,7 +191,7 @@ class ApiWrapper:
 
     def get_analysis_files(self) -> list[AnalysisFile]:
         r = httpx.get(
-            f"{self.base_url}/analysis-files",
+            urljoin(self.base_url, "/analysis-files"),
             headers=self.__auth_header(),
         ).raise_for_status()
         j = r.json()

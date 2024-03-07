@@ -65,3 +65,16 @@ def test_upload_to_bucket(api, rng):
 
     assert bucket_file.name == file_name
     assert _is_valid_uuid(bucket_file.id)
+
+    analysis_file = api.link_file_to_analysis(
+        analysis.id, bucket_file.id, bucket_file.name
+    )
+
+    assert analysis_file.name == bucket_file.name
+    assert _is_valid_uuid(analysis_file.id)
+    assert analysis_file.type == "RESULT"
+    assert analysis_file.bucket_file_id == bucket_file.id
+
+    analysis_file_list = api.get_analysis_files()
+
+    assert analysis_file.id in [f.id for f in analysis_file_list]

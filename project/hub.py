@@ -187,3 +187,20 @@ class ApiWrapper:
             type=j["type"],
             bucket_file_id=j["bucket_file_id"],
         )
+
+    def get_analysis_files(self) -> list[AnalysisFile]:
+        r = httpx.get(
+            f"{self.base_url}/analysis-files",
+            headers=self.__auth_header(),
+        ).raise_for_status()
+        j = r.json()
+
+        return [
+            AnalysisFile(
+                id=f["id"],
+                name=f["name"],
+                type=f["type"],
+                bucket_file_id=f["bucket_file_id"],
+            )
+            for f in j["data"]
+        ]

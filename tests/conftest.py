@@ -89,7 +89,7 @@ def setup_jwks_endpoint():
     httpd.shutdown()
 
 
-@pytest.fixture
+@pytest.fixture(scope="package")
 def rng():
     return random.Random(727)
 

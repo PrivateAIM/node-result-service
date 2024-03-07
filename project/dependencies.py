@@ -97,7 +97,7 @@ def __obtain_new_access_token(auth: AuthWrapper, username: str, password: str):
 
 
 def get_auth_wrapper(settings: Annotated[Settings, Depends(get_settings)]):
-    return AuthWrapper(settings.hub.auth_base_url)
+    return AuthWrapper(str(settings.hub.auth_base_url))
 
 
 def get_access_token(

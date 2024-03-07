@@ -23,6 +23,8 @@ class ScratchUploadResponse(BaseModel):
 @router.put(
     "/",
     response_model=ScratchUploadResponse,
+    summary="Upload file to local object storage",
+    operation_id="putIntermediateFile",
 )
 async def upload_to_scratch(
     client_id: Annotated[str, Depends(get_client_id)],
@@ -31,6 +33,12 @@ async def upload_to_scratch(
     minio: Annotated[Minio, Depends(get_local_minio)],
     request: Request,
 ):
+    """Upload a file to the local S3 instance.
+    The file is not forwarded to the FLAME hub.
+    Responds with a 200 on success and a link to the endpoint for fetching the uploaded file.
+
+    This endpoint is to be used for submitting intermediate results of a federated analysis.
+    """
     object_id = str(uuid.uuid4())
 
     minio.put_object(
@@ -51,13 +59,23 @@ async def upload_to_scratch(
     )
 
 
-@router.get("/{object_id}")
+@router.get(
+    "/{object_id}",
+    summary="Get file from local object storage",
+    operation_id="getIntermediateFile",
+)
 async def read_from_scratch(
     client_id: Annotated[str, Depends(get_client_id)],
     object_id: uuid.UUID,
     settings: Annotated[Settings, Depends(get_settings)],
     minio: Annotated[Minio, Depends(get_local_minio)],
 ):
+    """Get a file from the local S3 instance.
+    The file must have previously been uploaded using the PUT method of this endpoint.
+    Responds with a 200 on success and the requested file in the response body.
+
+    This endpoint is to be used for retrieving intermediate results of a federated analysis.
+    """
     try:
         response = minio.get_object(
             settings.minio.bucket, f"scratch/{client_id}/{object_id}"

@@ -2,7 +2,9 @@ import json
 import logging.config
 import os.path
 from contextlib import asynccontextmanager
+from pathlib import Path
 
+import tomli
 from fastapi import FastAPI
 
 from project.routers import upload, scratch
@@ -23,11 +25,42 @@ async def lifespan(app: FastAPI):
     yield
 
 
-app = FastAPI(lifespan=lifespan)
+with open(Path(__file__).parent.parent / "pyproject.toml", mode="rb") as f:
+    pyproject_data = tomli.load(f)
+
+with open(Path(__file__).parent.parent / "README.md", mode="r") as f:
+    app_description = f.read()
+
+app_version = pyproject_data["tool"]["poetry"]["version"]
+app_summary = pyproject_data["tool"]["poetry"]["description"]
+
+app = FastAPI(
+    title="FLAME Node Result Service",
+    summary=app_summary,
+    version=app_version,
+    lifespan=lifespan,
+    description=app_description,
+    license_info={
+        "name": "Apache 2.0",
+        "url": "https://www.apache.org/licenses/LICENSE-2.0.html",
+        "identifier": "Apache-2.0",
+    },
+    openapi_tags=[
+        {
+            "name": "upload",
+            "description": "Upload files for submission to FLAME hub",
+        },
+        {
+            "name": "scratch",
+            "description": "Upload files to local object storage",
+        },
+    ],
+)
 
 
-@app.get("/healthz")
+@app.get("/healthz", summary="Check service readiness", operation_id="getHealth")
 async def do_healthcheck():
+    """Check whether the service is ready to process requests. Responds with a 200 on success."""
     return {"status": "ok"}
 
 

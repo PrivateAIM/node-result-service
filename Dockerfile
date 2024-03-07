@@ -12,6 +12,7 @@ WORKDIR /app
 
 COPY ./config/ ./config/
 COPY --from=builder /tmp/requirements.txt ./
+COPY pyproject.toml README.md ./
 COPY ./project/ ./project/
 
 RUN pip install -r requirements.txt

@@ -43,12 +43,15 @@ class Bucket(NamedTuple):
 
 
 class AuthWrapper:
+    """Simple wrapper around the password-based token grant of the central AuthUp instance."""
+
     def __init__(self, base_url: str):
         self.base_url = base_url
 
     def acquire_access_token_with_password(
         self, username: str, password: str
     ) -> AccessToken:
+        """Acquire an access token using the given username and password."""
         r = httpx.post(
             urljoin(self.base_url, "/token"),
             json={
@@ -69,6 +72,8 @@ class AuthWrapper:
 
 
 class ApiWrapper:
+    """Simple wrapper around the central hub API. The wrapper does NOT check the access token validity."""
+
     def __init__(self, base_url: str, access_token: str):
         self.base_url = base_url
         self.access_token = access_token
@@ -77,6 +82,7 @@ class ApiWrapper:
         return {"Authorization": f"Bearer {self.access_token}"}
 
     def create_project(self, name: str) -> Project:
+        """Create a project with the given name."""
         r = httpx.post(
             urljoin(self.base_url, "/projects"),
             headers=self.__auth_header(),
@@ -90,6 +96,7 @@ class ApiWrapper:
         )
 
     def create_analysis(self, name: str, project_id: str) -> Analysis:
+        """Create an analysis with the given name and assign it to the given project."""
         r = httpx.post(
             urljoin(self.base_url, "/analyses"),
             headers=self.__auth_header(),
@@ -106,6 +113,7 @@ class ApiWrapper:
         )
 
     def get_bucket(self, bucket_name: str) -> Bucket | None:
+        """Get the bucket associated with the given name."""
         r = httpx.get(
             urljoin(self.base_url, f"/storage/buckets/{bucket_name}"),
             headers=self.__auth_header(),
@@ -124,6 +132,7 @@ class ApiWrapper:
         )
 
     def get_bucket_file(self, bucket_file_id: str) -> BucketFile | None:
+        """Get the file associated with the given bucket file ID."""
         r = httpx.get(
             urljoin(self.base_url, f"/storage/bucket-files/{bucket_file_id}"),
             headers=self.__auth_header(),
@@ -148,6 +157,8 @@ class ApiWrapper:
         file: BytesIO,
         content_type: str = "application/octet-stream",
     ) -> list[BucketFile]:
+        """Upload a file to the bucket associated with the given name. Content type is optional and is set
+        to application/octet-stream by default."""
         r = httpx.post(
             urljoin(self.base_url, f"/storage/buckets/{bucket_name}/upload"),
             headers=self.__auth_header(),
@@ -169,6 +180,8 @@ class ApiWrapper:
     def link_file_to_analysis(
         self, analysis_id: str, bucket_file_id: str, bucket_file_name: str
     ) -> AnalysisFile:
+        """Link the file associated with the given ID and name to the analysis associated with the given ID.
+        Currently, this function only supports linking result files."""
         r = httpx.post(
             urljoin(self.base_url, "/analysis-files"),
             headers=self.__auth_header(),
@@ -190,6 +203,7 @@ class ApiWrapper:
         )
 
     def get_analysis_files(self) -> list[AnalysisFile]:
+        """List all analysis files."""
         r = httpx.get(
             urljoin(self.base_url, "/analysis-files"),
             headers=self.__auth_header(),

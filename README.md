@@ -19,10 +19,8 @@ $ PYTEST__MINIO__ENDPOINT="localhost:9000" \
     PYTEST__MINIO__ACCESS_KEY="admin" \
     PYTEST__MINIO__SECRET_KEY="s3cr3t_p4ssw0rd" \
     PYTEST__MINIO__BUCKET="flame" \
-    PYTEST__REMOTE__ENDPOINT="localhost:9000" \
-    PYTEST__REMOTE__ACCESS_KEY="admin" \
-    PYTEST__REMOTE__SECRET_KEY="s3cr3t_p4ssw0rd" \
-    PYTEST__REMOTE__BUCKET="upload" pytest
+    PYTEST__HUB__AUTH_USERNAME="XXXXXXXX" \
+    PYTEST__HUB__AUTH_PASSWORD="XXXXXXXX" pytest
 ```
 
 OIDC does not need to be configured.

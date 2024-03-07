@@ -5,48 +5,45 @@ from http.server import BaseHTTPRequestHandler, HTTPServer
 
 import pytest
 from jwcrypto import jwk
-from minio import Minio
 from starlette.testclient import TestClient
 
-from project.config import Settings, MinioBucketConfig, OIDCConfig
+from project.config import Settings, MinioBucketConfig, OIDCConfig, HubConfig
 from project.dependencies import get_settings
+from project.hub import AuthWrapper, ApiWrapper
 from project.server import app
 from tests.common.auth import get_oid_test_jwk
 from tests.common.env import (
     PYTEST_OIDC_CERTS_URL,
-    PYTEST_LOCAL_MINIO_ENDPOINT,
-    PYTEST_LOCAL_MINIO_ACCESS_KEY,
-    PYTEST_LOCAL_MINIO_SECRET_KEY,
-    PYTEST_LOCAL_MINIO_REGION,
-    PYTEST_LOCAL_MINIO_USE_SSL,
-    PYTEST_LOCAL_MINIO_BUCKET,
+    PYTEST_MINIO_ENDPOINT,
+    PYTEST_MINIO_ACCESS_KEY,
+    PYTEST_MINIO_SECRET_KEY,
+    PYTEST_MINIO_REGION,
+    PYTEST_MINIO_USE_SSL,
+    PYTEST_MINIO_BUCKET,
     PYTEST_OIDC_CLIENT_ID_CLAIM_NAME,
-    PYTEST_REMOTE_MINIO_ENDPOINT,
-    PYTEST_REMOTE_MINIO_ACCESS_KEY,
-    PYTEST_REMOTE_MINIO_SECRET_KEY,
-    PYTEST_REMOTE_MINIO_REGION,
-    PYTEST_REMOTE_MINIO_USE_SSL,
-    PYTEST_REMOTE_MINIO_BUCKET,
+    PYTEST_HUB_AUTH_BASE_URL,
+    PYTEST_HUB_AUTH_USERNAME,
+    PYTEST_HUB_AUTH_PASSWORD,
+    PYTEST_HUB_API_BASE_URL,
 )
+from tests.common.helpers import eventually, next_prefixed_name, is_valid_uuid
 
 
 def __get_settings_override() -> Settings:
     return Settings(
-        minio=MinioBucketConfig(
-            endpoint=PYTEST_LOCAL_MINIO_ENDPOINT,
-            access_key=PYTEST_LOCAL_MINIO_ACCESS_KEY,
-            secret_key=PYTEST_LOCAL_MINIO_SECRET_KEY,
-            region=PYTEST_LOCAL_MINIO_REGION,
-            use_ssl=PYTEST_LOCAL_MINIO_USE_SSL,
-            bucket=PYTEST_LOCAL_MINIO_BUCKET,
+        hub=HubConfig(
+            api_base_url=PYTEST_HUB_API_BASE_URL,
+            auth_base_url=PYTEST_HUB_AUTH_BASE_URL,
+            auth_username=PYTEST_HUB_AUTH_USERNAME,
+            auth_password=PYTEST_HUB_AUTH_PASSWORD,
         ),
-        remote=MinioBucketConfig(
-            endpoint=PYTEST_REMOTE_MINIO_ENDPOINT,
-            access_key=PYTEST_REMOTE_MINIO_ACCESS_KEY,
-            secret_key=PYTEST_REMOTE_MINIO_SECRET_KEY,
-            region=PYTEST_REMOTE_MINIO_REGION,
-            use_ssl=PYTEST_REMOTE_MINIO_USE_SSL,
-            bucket=PYTEST_REMOTE_MINIO_BUCKET,
+        minio=MinioBucketConfig(
+            endpoint=PYTEST_MINIO_ENDPOINT,
+            access_key=PYTEST_MINIO_ACCESS_KEY,
+            secret_key=PYTEST_MINIO_SECRET_KEY,
+            region=PYTEST_MINIO_REGION,
+            use_ssl=PYTEST_MINIO_USE_SSL,
+            bucket=PYTEST_MINIO_BUCKET,
         ),
         oidc=OIDCConfig(
             certs_url=PYTEST_OIDC_CERTS_URL,
@@ -67,17 +64,6 @@ def test_client(test_app):
     # this is to ensure that the lifespan events are called
     with TestClient(test_app) as test_client:
         yield test_client
-
-
-@pytest.fixture(scope="package")
-def remote_minio():
-    return Minio(
-        endpoint=PYTEST_REMOTE_MINIO_ENDPOINT,
-        access_key=PYTEST_REMOTE_MINIO_ACCESS_KEY,
-        secret_key=PYTEST_REMOTE_MINIO_SECRET_KEY,
-        region=PYTEST_REMOTE_MINIO_REGION,
-        secure=PYTEST_REMOTE_MINIO_USE_SSL != "0",
-    ), PYTEST_REMOTE_MINIO_BUCKET
 
 
 @pytest.fixture(scope="package", autouse=True)
@@ -104,6 +90,53 @@ def setup_jwks_endpoint():
     httpd.shutdown()
 
 
-@pytest.fixture
+@pytest.fixture(scope="package")
 def rng():
     return random.Random(727)
+
+
+@pytest.fixture(scope="package")
+def hub_access_token():
+    return (
+        AuthWrapper(PYTEST_HUB_AUTH_BASE_URL)
+        .acquire_access_token_with_password(
+            PYTEST_HUB_AUTH_USERNAME, PYTEST_HUB_AUTH_PASSWORD
+        )
+        .access_token
+    )
+
+
+@pytest.fixture(scope="package")
+def api(hub_access_token):
+    return ApiWrapper(PYTEST_HUB_API_BASE_URL, hub_access_token)
+
+
+@pytest.fixture(scope="package")
+def analysis_id(api, rng):
+    project_name = next_prefixed_name()
+    project = api.create_project(project_name)
+
+    assert project.name == project_name
+    assert is_valid_uuid(project.id)
+
+    analysis_name = next_prefixed_name()
+    analysis = api.create_analysis(analysis_name, project.id)
+
+    assert analysis.name == analysis_name
+    assert is_valid_uuid(analysis.id)
+
+    for bucket_type in ("result", "code", "temp"):
+
+        def __bucket_exists():
+            bucket_name = f"analysis-{bucket_type}-files.{analysis.id}"
+            bucket = api.get_bucket(bucket_name)
+
+            if bucket is None:
+                return False
+
+            assert bucket.name == bucket_name
+            assert is_valid_uuid(bucket.id)
+
+        assert eventually(__bucket_exists)
+
+    yield analysis.id

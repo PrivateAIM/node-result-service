@@ -5,7 +5,8 @@ from starlette import status
 
 from project.routers.scratch import ScratchUploadResponse
 from tests.common.auth import BearerAuth, issue_client_access_token
-from tests.common.rest import next_random_bytes, wrap_bytes_for_request, detail_of
+from tests.common.helpers import next_random_bytes
+from tests.common.rest import wrap_bytes_for_request, detail_of
 
 
 def test_200_submit_receive_from_scratch(test_client, rng):

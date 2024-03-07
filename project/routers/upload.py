@@ -64,6 +64,8 @@ async def __bg_upload_to_remote(
 @router.put(
     "/",
     status_code=status.HTTP_204_NO_CONTENT,
+    summary="Upload file to submit to Hub",
+    operation_id="putResultFile",
 )
 async def upload_to_remote(
     client_id: Annotated[str, Depends(get_client_id)],
@@ -73,6 +75,13 @@ async def upload_to_remote(
     local_minio: Annotated[Minio, Depends(get_local_minio)],
     api_access_token: Annotated[AccessToken, Depends(get_access_token)],
 ):
+    """Upload a file to the local S3 instance and send it to FLAME Hub in the background.
+    The request is successful if the file was uploaded to the local S3 instance.
+    Responds with a 204 on success.
+
+    This endpoint is to be used for submitting final results of a federated analysis.
+
+    Currently, there is no way of determining the status or progress of the upload to the FLAME Hub."""
     object_id = str(uuid.uuid4())
     object_name = f"upload/{client_id}/{object_id}"
 

@@ -29,6 +29,10 @@ def get_settings():
 
 
 def get_auth_jwks(settings: Annotated[Settings, Depends(get_settings)]):
+    if settings.oidc.skip_jwt_validation:
+        logger.warning("Since JWT validation is skipped, an empty JWKS is returned")
+        return jwk.JWKSet()
+
     jwks_url = str(settings.oidc.certs_url)
 
     try:
@@ -36,6 +40,7 @@ def get_auth_jwks(settings: Annotated[Settings, Depends(get_settings)]):
         r.raise_for_status()
     except HTTPError:
         logger.exception("Failed to read OIDC config")
+
         raise HTTPException(
             status_code=status.HTTP_502_BAD_GATEWAY,
             detail="Auth provider is unavailable",
@@ -67,6 +72,27 @@ def get_client_id(
     jwks: Annotated[jwk.JWKSet, Depends(get_auth_jwks)],
     credentials: Annotated[HTTPAuthorizationCredentials, Depends(security)],
 ):
+    # TODO here be dragons!
+    if settings.oidc.skip_jwt_validation:
+        logger.warning(
+            "JWT validation is skipped, so JWT could be signed by an untrusted party "
+            "or be expired"
+        )
+
+        token = jwt.JWT(
+            jwt=credentials.credentials,
+            check_claims={
+                settings.oidc.client_id_claim_name: None,
+            },
+        )
+
+        # this hurts to write but there's no other way. token.token is an instance of JWS, and accessing
+        # the payload property expects that it is validated. but it isn't since we're skipping validation.
+        # so we have to access the undocumented property objects and read the payload from there.
+        return json.loads(token.token.objects["payload"])[
+            settings.oidc.client_id_claim_name
+        ]
+
     try:
         token = jwt.JWT(
             jwt=credentials.credentials,

@@ -19,6 +19,7 @@ class MinioBucketConfig(MinioConnection):
 class OIDCConfig(BaseModel):
     certs_url: HttpUrl
     client_id_claim_name: str = "client_id"
+    skip_jwt_validation: bool = False
 
     model_config = ConfigDict(frozen=True)
 

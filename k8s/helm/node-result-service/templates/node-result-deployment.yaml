@@ -1,19 +1,19 @@
 apiVersion: apps/v1
 kind: Deployment
 metadata:
-  name: node-result-deployment
+  name: {{ .Release.Name }}-node-result-deployment
 spec:
   replicas: 1
   selector:
     matchLabels:
-      app: node-result
+      app: {{ .Release.Name }}-node-result
   template:
     metadata:
       labels:
-        app: node-result
+        app: {{ .Release.Name }}-node-result
     spec:
       containers:
-        - name: node-result-service
+        - name: {{ .Release.Name }}-node-result-service
           image: ghcr.io/privateaim/node-result-service:sha-7740b53
           imagePullPolicy: IfNotPresent
           ports:
@@ -21,21 +21,21 @@ spec:
               name: http-result-srv
           env:
             - name: MINIO__ENDPOINT
-              value: local-minio-service:9000
+              value: {{ .Release.Name }}-local-minio-service
             - name: MINIO__ACCESS_KEY
-              value: admin
+              value: {{ required "MinIO user must be set." .Values.env.MINIO_ACCESS_KEY | quote }}
             - name: MINIO__SECRET_KEY
-              value: s3cr3t_p4ssw0rd
+              value: {{ required "MinIO password must be set." .Values.env.MINIO_SECRET_KEY | quote }}
             - name: MINIO__USE_SSL
-              value: "false"
+              value: {{ .Values.env.MINIO_USE_SSL | default false | quote }}
             - name: MINIO__BUCKET
-              value: flame
+              value: {{ required "MinIO bucket must be set." .Values.env.MINIO_BUCKET | quote }}
             - name: HUB__AUTH_USERNAME
-              value: your_hub_username_here
+              value: {{ required "Hub username must be set." .Values.env.HUB_USERNAME | quote }}
             - name: HUB__AUTH_PASSWORD
-              value: your_hub_password_here
+              value: {{ required "Hub password must be set." .Values.env.HUB_PASSWORD | quote }}
             - name: OIDC__CERTS_URL
-              value: http://keycloak:8080/bla/bla
+              value: {{ required "OIDC endpoint must be set." .Values.env.OIDC_CERTS_URL | quote }}
             # Change this to "1" for testing purposes. This will cause the value of OIDC__CERTS_URL to be
             # ignored. You will still need to set this variable for the service to start up correctly.
             - name: OIDC__SKIP_JWT_VALIDATION

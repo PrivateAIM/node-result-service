@@ -1,6 +1,3 @@
-api:
-  version: 0.1.0
-  domain: localhost
 env:
   HUB_USERNAME: foobar
   HUB_PASSWORD: sup3r_s3cr3t

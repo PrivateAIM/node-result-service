@@ -20,7 +20,7 @@ router = APIRouter()
 logger = logging.getLogger(__name__)
 
 
-async def __bg_upload_to_remote(
+def __bg_upload_to_remote(
     minio: Minio,
     bucket_name: str,
     object_name: str,

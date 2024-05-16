@@ -150,6 +150,15 @@ class ApiWrapper:
             bucket_id=j["bucket_id"],
         )
 
+    def stream_bucket_file(self, bucket_file_id: str):
+        with httpx.stream(
+            "GET",
+            urljoin(self.base_url, f"/storage/bucket-files/{bucket_file_id}/stream"),
+            headers=self.__auth_header(),
+        ) as r:
+            for b in r.iter_bytes(chunk_size=1024):
+                yield b
+
     def upload_to_bucket(
         self,
         bucket_name: str,

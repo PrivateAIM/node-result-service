@@ -51,7 +51,7 @@ def __bg_upload_to_remote(
         # fetch file s.t. it can be linked
         bucket_file = bucket_file_lst[0]
         # link file to analysis
-        api.link_file_to_analysis(client_id, bucket_file.id, bucket_file.name)
+        api.link_file_to_analysis(client_id, bucket_file.id, bucket_file.name, "RESULT")
         # remove from local minio
         minio.remove_object(bucket_name, object_name)
     finally:

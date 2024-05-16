@@ -1,5 +1,5 @@
 from io import BytesIO
-from typing import NamedTuple
+from typing import NamedTuple, Literal
 from urllib.parse import urljoin
 
 import httpx
@@ -150,6 +150,15 @@ class ApiWrapper:
             bucket_id=j["bucket_id"],
         )
 
+    def stream_bucket_file(self, bucket_file_id: str):
+        with httpx.stream(
+            "GET",
+            urljoin(self.base_url, f"/storage/bucket-files/{bucket_file_id}/stream"),
+            headers=self.__auth_header(),
+        ) as r:
+            for b in r.iter_bytes(chunk_size=1024):
+                yield b
+
     def upload_to_bucket(
         self,
         bucket_name: str,
@@ -178,7 +187,11 @@ class ApiWrapper:
         ]
 
     def link_file_to_analysis(
-        self, analysis_id: str, bucket_file_id: str, bucket_file_name: str
+        self,
+        analysis_id: str,
+        bucket_file_id: str,
+        bucket_file_name: str,
+        bucket_file_type: Literal["CODE", "RESULT", "TEMP"],
     ) -> AnalysisFile:
         """Link the file associated with the given ID and name to the analysis associated with the given ID.
         Currently, this function only supports linking result files."""
@@ -187,7 +200,7 @@ class ApiWrapper:
             headers=self.__auth_header(),
             json={
                 "analysis_id": analysis_id,
-                "type": "RESULT",
+                "type": bucket_file_type,
                 "bucket_file_id": bucket_file_id,
                 "name": bucket_file_name,
                 "root": True,

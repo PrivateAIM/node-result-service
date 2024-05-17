@@ -26,7 +26,7 @@ logger = logging.getLogger(__name__)
 object_id_to_hub_bucket_dict: dict[str, Optional[str]] = {}
 
 
-class ScratchUploadResponse(BaseModel):
+class IntermediateUploadResponse(BaseModel):
     url: HttpUrl
 
 
@@ -69,7 +69,7 @@ def __bg_upload_to_remote(
 @router.put(
     "/",
     status_code=status.HTTP_202_ACCEPTED,
-    response_model=ScratchUploadResponse,
+    response_model=IntermediateUploadResponse,
     summary="Upload file as intermediate result to Hub",
     operation_id="putIntermediateResult",
 )
@@ -108,7 +108,7 @@ async def submit_intermediate_result_to_hub(
         object_id,
     )
 
-    return ScratchUploadResponse(
+    return IntermediateUploadResponse(
         url=str(
             request.url_for(
                 "retrieve_intermediate_result_from_hub",

@@ -3,7 +3,7 @@ import uuid
 import pytest
 from starlette import status
 
-from project.routers.intermediate import ScratchUploadResponse
+from project.routers.intermediate import IntermediateUploadResponse
 from tests.common.auth import BearerAuth, issue_client_access_token
 from tests.common.helpers import next_random_bytes, eventually
 from tests.common.rest import wrap_bytes_for_request, detail_of
@@ -22,7 +22,7 @@ def test_200_submit_receive_from_scratch(test_client, rng, analysis_id):
     assert r.status_code == status.HTTP_202_ACCEPTED
 
     # check that the response contains a path to a valid resource
-    model = ScratchUploadResponse(**r.json())
+    model = IntermediateUploadResponse(**r.json())
 
     def _check_response_from_hub():
         r = test_client.get(

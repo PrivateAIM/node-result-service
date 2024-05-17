@@ -2,6 +2,7 @@ import os
 from datetime import timedelta, datetime, timezone
 from functools import lru_cache
 from typing import Any
+from uuid import UUID
 
 import httpx
 from httpx import Request
@@ -51,13 +52,13 @@ def issue_access_token(
 
 
 def issue_client_access_token(
-    client_id: str = "flame",
+    client_id: UUID | str = "flame",
     issued_at: datetime | None = None,
     expires_in: timedelta | None = None,
 ):
     return issue_access_token(
         {
-            PYTEST_OIDC_CLIENT_ID_CLAIM_NAME: client_id,
+            PYTEST_OIDC_CLIENT_ID_CLAIM_NAME: str(client_id),
         },
         issued_at,
         expires_in,

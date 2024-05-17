@@ -1,12 +1,19 @@
+import time
+from datetime import datetime
 from io import BytesIO
-from typing import NamedTuple, Literal
+from typing import TypeVar, Generic, Literal, Optional
 from urllib.parse import urljoin
+from uuid import UUID
 
 import httpx
+from pydantic import BaseModel
 from starlette import status
 
+BucketType = Literal["CODE", "TEMP", "RESULT"]
+ResourceT = TypeVar("ResourceT")
 
-class AccessToken(NamedTuple):
+
+class AccessToken(BaseModel):
     access_token: str
     expires_in: int
     token_type: str
@@ -14,221 +21,304 @@ class AccessToken(NamedTuple):
     refresh_token: str
 
 
-class Project(NamedTuple):
-    id: str
-    name: str
+class Project(BaseModel):
+    id: UUID
+    name: Optional[str]
+    analyses: int
+    created_at: datetime
+    updated_at: datetime
 
 
-class Analysis(NamedTuple):
-    id: str
-    name: str
+class Analysis(BaseModel):
+    id: UUID
+    name: Optional[str]
+    project_id: UUID
+    created_at: datetime
+    updated_at: datetime
 
 
-class BucketFile(NamedTuple):
-    id: str
-    name: str
-    bucket_id: str
+class Bucket(BaseModel):
+    id: UUID
+    name: Optional[str]
+    created_at: datetime
+    updated_at: datetime
 
 
-class AnalysisFile(NamedTuple):
-    id: str
-    name: str
-    type: str
-    bucket_file_id: str
+class BucketFile(BaseModel):
+    id: UUID
+    name: Optional[str]
+    size: int
+    directory: str
+    hash: str
+    bucket_id: UUID
+    created_at: datetime
+    updated_at: datetime
 
 
-class Bucket(NamedTuple):
-    id: str
-    name: str
+class AnalysisFile(BaseModel):
+    id: UUID
+    name: Optional[str]
+    type: BucketType
+    root: bool
+    created_at: datetime
+    updated_at: datetime
+    bucket_file_id: UUID
+    analysis_id: UUID
 
 
-class AuthWrapper:
-    """Simple wrapper around the password-based token grant of the central AuthUp instance."""
+class ResourceListMeta(BaseModel):
+    total: int
 
-    def __init__(self, base_url: str):
+
+class ResourceList(BaseModel, Generic[ResourceT]):
+    data: list[ResourceT]
+    meta: ResourceListMeta
+
+
+def _now():
+    return int(time.time())
+
+
+def format_analysis_bucket_name(
+    analysis_id: str | UUID, bucket_type: BucketType
+) -> str:
+    return f"analysis-{bucket_type.lower()}-files.{analysis_id}"
+
+
+class FlamePasswordAuthClient:
+    def __init__(
+        self,
+        username: str,
+        password: str,
+        base_url="https://auth.privateaim.net",
+        token_expiration_leeway_seconds=60,
+        force_acquire_on_init=False,
+    ):
         self.base_url = base_url
+        self._username = username
+        self._password = password
+        self._token_expiration_leeway_seconds = token_expiration_leeway_seconds
+        self._current_access_token = None
+        self._current_access_token_expires_at = 0
 
-    def acquire_access_token_with_password(
-        self, username: str, password: str
-    ) -> AccessToken:
-        """Acquire an access token using the given username and password."""
+        if force_acquire_on_init:
+            self._acquire_token()
+
+    def _acquire_token(self):
         r = httpx.post(
             urljoin(self.base_url, "/token"),
             json={
                 "grant_type": "password",
-                "username": username,
-                "password": password,
+                "username": self._username,
+                "password": self._password,
             },
-        ).raise_for_status()
-        j = r.json()
-
-        return AccessToken(
-            access_token=j["access_token"],
-            expires_in=j["expires_in"],
-            token_type=j["token_type"],
-            scope=j["scope"],
-            refresh_token=j["refresh_token"],
         )
 
+        r.raise_for_status()
+        at = AccessToken(**r.json())
 
-class ApiWrapper:
-    """Simple wrapper around the central hub API. The wrapper does NOT check the access token validity."""
+        self._current_access_token = at
+        self._current_access_token_expires_at = _now() + at.expires_in
 
-    def __init__(self, base_url: str, access_token: str):
+    def get_access_token_object(self) -> AccessToken:
+        if self._current_access_token is None:
+            self._acquire_token()
+        elif (
+            self._current_access_token_expires_at
+            < _now() + self._token_expiration_leeway_seconds
+        ):
+            self._acquire_token()
+
+        return self._current_access_token
+
+    def get_access_token(self):
+        return self.get_access_token_object().access_token
+
+    def get_auth_bearer_header(self):
+        return {
+            "Authorization": f"Bearer {self.get_access_token()}",
+        }
+
+
+class FlameHubClient:
+    def __init__(
+        self,
+        auth_client: FlamePasswordAuthClient,
+        base_url="https://api.privateaim.net",
+    ):
         self.base_url = base_url
-        self.access_token = access_token
-
-    def __auth_header(self):
-        return {"Authorization": f"Bearer {self.access_token}"}
+        self.auth_client = auth_client
 
     def create_project(self, name: str) -> Project:
-        """Create a project with the given name."""
         r = httpx.post(
             urljoin(self.base_url, "/projects"),
-            headers=self.__auth_header(),
-            json={"name": name},
-        ).raise_for_status()
-        j = r.json()
-
-        return Project(
-            id=j["id"],
-            name=j["name"],
-        )
-
-    def create_analysis(self, name: str, project_id: str) -> Analysis:
-        """Create an analysis with the given name and assign it to the given project."""
-        r = httpx.post(
-            urljoin(self.base_url, "/analyses"),
-            headers=self.__auth_header(),
+            headers=self.auth_client.get_auth_bearer_header(),
             json={
                 "name": name,
-                "project_id": project_id,
             },
-        ).raise_for_status()
-        j = r.json()
-
-        return Analysis(
-            id=j["id"],
-            name=j["name"],
         )
 
-    def get_bucket(self, bucket_name: str) -> Bucket | None:
-        """Get the bucket associated with the given name."""
+        r.raise_for_status()
+        return Project(**r.json())
+
+    def delete_project(self, project_id: str | UUID):
+        r = httpx.delete(
+            urljoin(self.base_url, f"/projects/{project_id}"),
+            headers=self.auth_client.get_auth_bearer_header(),
+        )
+
+        r.raise_for_status()
+
+    def get_project_list(self) -> ResourceList[Project]:
         r = httpx.get(
-            urljoin(self.base_url, f"/storage/buckets/{bucket_name}"),
-            headers=self.__auth_header(),
+            urljoin(self.base_url, "/projects"),
+            headers=self.auth_client.get_auth_bearer_header(),
+        )
+
+        r.raise_for_status()
+        return ResourceList[Project](**r.json())
+
+    def get_project_by_id(self, project_id: str | UUID) -> Project | None:
+        r = httpx.get(
+            urljoin(self.base_url, f"/projects/{project_id}"),
+            headers=self.auth_client.get_auth_bearer_header(),
         )
 
         if r.status_code == status.HTTP_404_NOT_FOUND:
             return None
 
-        # catch any other unexpected status
         r.raise_for_status()
-        j = r.json()
+        return Project(**r.json())
 
-        return Bucket(
-            id=j["id"],
-            name=j["name"],
+    def create_analysis(self, name: str, project_id: str | UUID) -> Analysis:
+        r = httpx.post(
+            urljoin(self.base_url, "/analyses"),
+            headers=self.auth_client.get_auth_bearer_header(),
+            json={
+                "name": name,
+                "project_id": str(project_id),
+            },
         )
 
-    def get_bucket_file(self, bucket_file_id: str) -> BucketFile | None:
-        """Get the file associated with the given bucket file ID."""
+        r.raise_for_status()
+        return Analysis(**r.json())
+
+    def delete_analysis(self, analysis_id: str | UUID):
+        r = httpx.delete(
+            urljoin(self.base_url, f"/analyses/{analysis_id}"),
+            headers=self.auth_client.get_auth_bearer_header(),
+        )
+
+        r.raise_for_status()
+
+    def get_analysis_list(self) -> ResourceList[Analysis]:
         r = httpx.get(
-            urljoin(self.base_url, f"/storage/bucket-files/{bucket_file_id}"),
-            headers=self.__auth_header(),
-        ).raise_for_status()
+            urljoin(self.base_url, "/analyses"),
+            headers=self.auth_client.get_auth_bearer_header(),
+        )
+
+        r.raise_for_status()
+        return ResourceList[Analysis](**r.json())
+
+    def get_analysis_by_id(self, analysis_id: str | UUID) -> Analysis | None:
+        r = httpx.get(
+            urljoin(self.base_url, f"/analyses/{analysis_id}"),
+            headers=self.auth_client.get_auth_bearer_header(),
+        )
 
         if r.status_code == status.HTTP_404_NOT_FOUND:
             return None
 
         r.raise_for_status()
-        j = r.json()
+        return Analysis(**r.json())
 
-        return BucketFile(
-            id=j["id"],
-            name=j["name"],
-            bucket_id=j["bucket_id"],
+    def get_bucket_list(self) -> ResourceList[Bucket]:
+        r = httpx.get(
+            urljoin(self.base_url, "/storage/buckets"),
+            headers=self.auth_client.get_auth_bearer_header(),
         )
 
-    def stream_bucket_file(self, bucket_file_id: str):
-        with httpx.stream(
-            "GET",
-            urljoin(self.base_url, f"/storage/bucket-files/{bucket_file_id}/stream"),
-            headers=self.__auth_header(),
-        ) as r:
-            for b in r.iter_bytes(chunk_size=1024):
-                yield b
+        r.raise_for_status()
+        return ResourceList[Bucket](**r.json())
+
+    def get_bucket_by_id_or_name(self, bucket_id_or_name: str | UUID) -> Bucket | None:
+        r = httpx.get(
+            urljoin(self.base_url, f"/storage/buckets/{bucket_id_or_name}"),
+            headers=self.auth_client.get_auth_bearer_header(),
+        )
+
+        if r.status_code == status.HTTP_404_NOT_FOUND:
+            return None
+
+        r.raise_for_status()
+        return Bucket(**r.json())
+
+    def get_bucket_file_list(self) -> ResourceList[BucketFile]:
+        r = httpx.get(
+            urljoin(self.base_url, "/storage/bucket-files"),
+            headers=self.auth_client.get_auth_bearer_header(),
+        )
+
+        r.raise_for_status()
+        return ResourceList[BucketFile](**r.json())
 
     def upload_to_bucket(
         self,
-        bucket_name: str,
+        bucket_id_or_name: str | UUID,
         file_name: str,
-        file: BytesIO,
+        file: bytes | BytesIO,
         content_type: str = "application/octet-stream",
-    ) -> list[BucketFile]:
-        """Upload a file to the bucket associated with the given name. Content type is optional and is set
-        to application/octet-stream by default."""
+    ) -> ResourceList[BucketFile]:
+        # wrap into BytesIO if raw bytes are passed in
+        if isinstance(file, bytes):
+            file = BytesIO(file)
+
         r = httpx.post(
-            urljoin(self.base_url, f"/storage/buckets/{bucket_name}/upload"),
-            headers=self.__auth_header(),
-            files={
-                "file": (file_name, file, content_type),
-            },
-        ).raise_for_status()
-        j = r.json()
-
-        return [
-            BucketFile(
-                id=b["id"],
-                name=b["name"],
-                bucket_id=b["bucket_id"],
-            )
-            for b in j["data"]
-        ]
-
-    def link_file_to_analysis(
-        self,
-        analysis_id: str,
-        bucket_file_id: str,
-        bucket_file_name: str,
-        bucket_file_type: Literal["CODE", "RESULT", "TEMP"],
-    ) -> AnalysisFile:
-        """Link the file associated with the given ID and name to the analysis associated with the given ID.
-        Currently, this function only supports linking result files."""
-        r = httpx.post(
-            urljoin(self.base_url, "/analysis-files"),
-            headers=self.__auth_header(),
-            json={
-                "analysis_id": analysis_id,
-                "type": bucket_file_type,
-                "bucket_file_id": bucket_file_id,
-                "name": bucket_file_name,
-                "root": True,
-            },
-        ).raise_for_status()
-        j = r.json()
-
-        return AnalysisFile(
-            id=j["id"],
-            name=j["name"],
-            type=j["type"],
-            bucket_file_id=j["bucket_file_id"],
+            urljoin(self.base_url, f"/storage/buckets/{bucket_id_or_name}/upload"),
+            headers=self.auth_client.get_auth_bearer_header(),
+            files={"file": (file_name, file, content_type)},
         )
 
-    def get_analysis_files(self) -> list[AnalysisFile]:
-        """List all analysis files."""
+        r.raise_for_status()
+        return ResourceList[BucketFile](**r.json())
+
+    def get_analysis_file_list(self) -> ResourceList[AnalysisFile]:
         r = httpx.get(
             urljoin(self.base_url, "/analysis-files"),
-            headers=self.__auth_header(),
-        ).raise_for_status()
-        j = r.json()
+            headers=self.auth_client.get_auth_bearer_header(),
+        )
 
-        return [
-            AnalysisFile(
-                id=f["id"],
-                name=f["name"],
-                type=f["type"],
-                bucket_file_id=f["bucket_file_id"],
-            )
-            for f in j["data"]
-        ]
+        r.raise_for_status()
+        return ResourceList[AnalysisFile](**r.json())
+
+    def link_bucket_file_to_analysis(
+        self,
+        analysis_id: str | UUID,
+        bucket_file_id: str | UUID,
+        bucket_file_name: str,
+        bucket_type: BucketType,
+        root=True,
+    ) -> AnalysisFile:
+        r = httpx.post(
+            urljoin(self.base_url, "/analysis-files"),
+            headers=self.auth_client.get_auth_bearer_header(),
+            json={
+                "analysis_id": str(analysis_id),
+                "bucket_file_id": str(bucket_file_id),
+                "type": bucket_type,
+                "name": bucket_file_name,
+                "root": root,
+            },
+        )
+
+        r.raise_for_status()
+        return AnalysisFile(**r.json())
+
+    def stream_bucket_file(self, bucket_file_id: str | UUID, chunk_size=1024):
+        with httpx.stream(
+            "GET",
+            urljoin(self.base_url, f"/storage/bucket-files/{bucket_file_id}/stream"),
+            headers=self.auth_client.get_auth_bearer_header(),
+        ) as r:
+            for b in r.iter_bytes(chunk_size=chunk_size):
+                yield b

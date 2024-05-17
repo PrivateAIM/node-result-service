@@ -14,7 +14,7 @@ from project.dependencies import (
     get_client_id,
     get_api_client,
 )
-from project.hub_ng import FlameHubClient, format_analysis_bucket_name
+from project.hub import FlameHubClient, format_analysis_bucket_name
 
 router = APIRouter()
 logger = logging.getLogger(__name__)

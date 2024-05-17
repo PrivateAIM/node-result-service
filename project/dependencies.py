@@ -12,7 +12,7 @@ from minio import Minio
 from starlette import status
 
 from project.config import Settings, MinioBucketConfig
-from project.hub_ng import FlamePasswordAuthClient, FlameHubClient
+from project.hub import FlamePasswordAuthClient, FlameHubClient
 
 security = HTTPBearer()
 logger = logging.getLogger(__name__)

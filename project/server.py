@@ -7,7 +7,7 @@ from pathlib import Path
 import tomli
 from fastapi import FastAPI
 
-from project.routers import upload, scratch
+from project.routers import final, intermediate
 
 
 @asynccontextmanager
@@ -65,13 +65,13 @@ async def do_healthcheck():
 
 
 app.include_router(
-    upload.router,
-    prefix="/upload",
-    tags=["upload"],
+    final.router,
+    prefix="/final",
+    tags=["final"],
 )
 
 app.include_router(
-    scratch.router,
-    prefix="/scratch",
-    tags=["scratch"],
+    intermediate.router,
+    prefix="/intermediate",
+    tags=["intermediate"],
 )

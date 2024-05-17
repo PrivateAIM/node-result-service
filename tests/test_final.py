@@ -13,7 +13,7 @@ def test_200_submit_to_upload(test_client, rng, api_client, analysis_id):
 
     blob = next_random_bytes(rng)
     r = test_client.put(
-        "/upload",
+        "/final",
         auth=BearerAuth(issue_client_access_token(analysis_id)),
         files=wrap_bytes_for_request(blob),
     )

@@ -68,11 +68,12 @@ def __bg_upload_to_remote(
 
 @router.put(
     "/",
+    status_code=status.HTTP_202_ACCEPTED,
     response_model=ScratchUploadResponse,
-    summary="Upload file to local object storage",
-    operation_id="putIntermediateFile",
+    summary="Upload file as intermediate result to Hub",
+    operation_id="putIntermediateResult",
 )
-async def upload_to_scratch(
+async def submit_intermediate_result_to_hub(
     client_id: Annotated[str, Depends(get_client_id)],
     file: UploadFile,
     settings: Annotated[Settings, Depends(get_settings)],
@@ -81,12 +82,9 @@ async def upload_to_scratch(
     api_client: Annotated[FlameHubClient, Depends(get_api_client)],
     background_tasks: BackgroundTasks,
 ):
-    """Upload a file to the local S3 instance.
-    The file is not forwarded to the FLAME hub.
-    Responds with a 200 on success and a link to the endpoint for fetching the uploaded file.
-
-    This endpoint is to be used for submitting intermediate results of a federated analysis.
-    """
+    """Upload a file as an intermediate result to the FLAME Hub.
+    Returns a 202 on success.
+    This endpoint returns immediately and submits the file in the background."""
     object_id = str(uuid.uuid4())
     object_name = f"temp/{client_id}/{object_id}"
 
@@ -113,7 +111,7 @@ async def upload_to_scratch(
     return ScratchUploadResponse(
         url=str(
             request.url_for(
-                "read_from_scratch",
+                "retrieve_intermediate_result_from_hub",
                 object_id=object_id,
             )
         ),
@@ -122,21 +120,15 @@ async def upload_to_scratch(
 
 @router.get(
     "/{object_id}",
-    summary="Get file from local object storage",
-    operation_id="getIntermediateFile",
+    summary="Get intermediate result as file to Hub",
+    operation_id="getIntermediateResult",
 )
-async def read_from_scratch(
+async def retrieve_intermediate_result_from_hub(
     client_id: Annotated[str, Depends(get_client_id)],
     object_id: uuid.UUID,
-    settings: Annotated[Settings, Depends(get_settings)],
     api_client: Annotated[FlameHubClient, Depends(get_api_client)],
 ):
-    """Get a file from the local S3 instance.
-    The file must have previously been uploaded using the PUT method of this endpoint.
-    Responds with a 200 on success and the requested file in the response body.
-
-    This endpoint is to be used for retrieving intermediate results of a federated analysis.
-    """
+    """Get an intermediate result as file from the FLAME Hub."""
     object_id_str = str(object_id)
 
     if (

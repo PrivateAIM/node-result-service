@@ -122,9 +122,11 @@ async def submit_intermediate_result_to_hub(
     "/{object_id}",
     summary="Get intermediate result as file to Hub",
     operation_id="getIntermediateResult",
+    # client id is not actually used here but required for auth. having this
+    # as a path dependency makes pycharm stop complaining about unused params.
+    dependencies=[Depends(get_client_id)],
 )
 async def retrieve_intermediate_result_from_hub(
-    client_id: Annotated[str, Depends(get_client_id)],
     object_id: uuid.UUID,
     api_client: Annotated[FlameHubClient, Depends(get_api_client)],
 ):

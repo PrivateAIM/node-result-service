@@ -57,27 +57,21 @@ The following table shows all available configuration options.
 
 ## Note on running tests
 
-When running tests, environment variables must be overwritten by prefixing them with `PYTEST__`.
+Set up tests by copying `.env.example` into a new file called `.env.test`.
+You can then execute tests by running `pytest`.
+Pre-existing environment variables take precedence and will not be overwritten by the contents of `.env.test`.
+
 OIDC does not need to be configured, since an OIDC-compatible endpoint will be spawned alongside the tests that are
 being run.
 A [pre-generated keypair](tests/assets/keypair.pem) is used for this purpose.
 This allows all tests to generate valid JWTs as well as the service to validate them.
 The keypair is for development purposes only and should not be used in a productive setting.
-Therefore `pytest` should be invoked as follows.
-
-```
-$ PYTEST__MINIO__ENDPOINT="localhost:9000" \
-    PYTEST__MINIO__ACCESS_KEY="admin" \
-    PYTEST__MINIO__SECRET_KEY="s3cr3t_p4ssw0rd" \
-    PYTEST__MINIO__BUCKET="flame" \
-    PYTEST__HUB__AUTH_USERNAME="XXXXXXXX" \
-    PYTEST__HUB__AUTH_PASSWORD="XXXXXXXX" pytest
-```
 
 Some tests need to be run against live infrastructure.
 Since a proper test instance is not available yet, these tests are hidden behind a flag and are not explicitly run in
 CI.
 To run these tests, append `-m live` to the command above.
+Make sure to configure `HUB__AUTH_USERNAME` and `HUB__AUTH_PASSWORD` in your `.env.test` file before running tests.
 
 # License
 

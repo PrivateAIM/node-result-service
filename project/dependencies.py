@@ -1,6 +1,5 @@
 import json
 import logging
-import time
 from functools import lru_cache
 from typing import Annotated
 
@@ -13,14 +12,10 @@ from minio import Minio
 from starlette import status
 
 from project.config import Settings, MinioBucketConfig
-from project.hub import AccessToken, AuthWrapper
+from project.hub import FlamePasswordAuthClient, FlameHubClient
 
 security = HTTPBearer()
 logger = logging.getLogger(__name__)
-
-# TODO this doesn't consider the fact that an access token may be invalidated for any reason other than expiration
-_access_token: AccessToken | None = None
-_access_token_retrieved_at: int
 
 
 @lru_cache
@@ -115,32 +110,19 @@ def get_client_id(
         )
 
 
-def __obtain_new_access_token(auth: AuthWrapper, username: str, password: str):
-    global _access_token, _access_token_retrieved_at
-
-    _access_token = auth.acquire_access_token_with_password(username, password)
-    _access_token_retrieved_at = int(time.time())
-
-
-def get_auth_wrapper(settings: Annotated[Settings, Depends(get_settings)]):
-    return AuthWrapper(str(settings.hub.auth_base_url))
+def get_auth_client(settings: Annotated[Settings, Depends(get_settings)]):
+    return FlamePasswordAuthClient(
+        settings.hub.auth_username,
+        settings.hub.auth_password,
+        base_url=str(settings.hub.auth_base_url),
+    )
 
 
-def get_access_token(
+def get_api_client(
     settings: Annotated[Settings, Depends(get_settings)],
-    auth_wrapper: Annotated[AuthWrapper, Depends(get_auth_wrapper)],
-) -> AccessToken:
-    global _access_token, _access_token_retrieved_at
-
-    if _access_token is None:
-        __obtain_new_access_token(
-            auth_wrapper, settings.hub.auth_username, settings.hub.auth_password
-        )
-
-    # TODO configurable leeway?
-    if int(time.time()) < _access_token_retrieved_at - 3600:
-        __obtain_new_access_token(
-            auth_wrapper, settings.hub.auth_username, settings.hub.auth_password
-        )
-
-    return _access_token
+    auth_client: Annotated[FlamePasswordAuthClient, Depends(get_auth_client)],
+):
+    return FlameHubClient(
+        auth_client,
+        base_url=str(settings.hub.api_base_url),
+    )

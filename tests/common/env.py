@@ -10,27 +10,33 @@ def __get_env(env_name: str, val_def: str | None = None) -> str:
     return val
 
 
-PYTEST_HUB_API_BASE_URL = __get_env(
-    "PYTEST__HUB__API_BASE_URL", "https://api.privateaim.net"
-)
-PYTEST_HUB_AUTH_BASE_URL = __get_env(
-    "PYTEST__HUB__AUTH_BASE_URL", "https://auth.privateaim.net"
-)
-PYTEST_HUB_AUTH_USERNAME = __get_env("PYTEST__HUB__AUTH_USERNAME")
-PYTEST_HUB_AUTH_PASSWORD = __get_env("PYTEST__HUB__AUTH_PASSWORD")
+def hub_api_base_url():
+    return __get_env("HUB__API_BASE_URL", "https://api.privateaim.net")
 
-PYTEST_OIDC_CERTS_URL = __get_env(
-    "PYTEST__OIDC__CERTS_URL", "http://localhost:8001/.well-known/jwks.json"
-)
-PYTEST_OIDC_CLIENT_ID_CLAIM_NAME = __get_env(
-    "PYTEST__OIDC__CLIENT_ID_CLAIM_NAME", "client_id"
-)
 
-PYTEST_MINIO_ENDPOINT = __get_env("PYTEST__MINIO__ENDPOINT")
-PYTEST_MINIO_ACCESS_KEY = __get_env("PYTEST__MINIO__ACCESS_KEY")
-PYTEST_MINIO_SECRET_KEY = __get_env("PYTEST__MINIO__SECRET_KEY")
-PYTEST_MINIO_REGION = __get_env("PYTEST__MINIO__REGION", "us-east-1")
-PYTEST_MINIO_BUCKET = __get_env("PYTEST__MINIO__BUCKET")
-PYTEST_MINIO_USE_SSL = __get_env("PYTEST__MINIO__USE_SSL", "0")
+def hub_auth_base_url():
+    return __get_env("HUB__AUTH_BASE_URL", "https://auth.privateaim.net")
 
-PYTEST_ASYNC_MAX_RETRIES = __get_env("PYTEST__ASYNC_MAX_RETRIES", "10")
+
+def hub_auth_username():
+    return __get_env("HUB__AUTH_USERNAME")
+
+
+def hub_auth_password():
+    return __get_env("HUB__AUTH_PASSWORD")
+
+
+def oidc_certs_url():
+    return __get_env("OIDC__CERTS_URL", "http://localhost:8001/.well-known/jwks.json")
+
+
+def oidc_client_id_claim_name():
+    return __get_env("OIDC__CLIENT_ID_CLAIM_NAME", "client_id")
+
+
+def async_max_retries():
+    return __get_env("ASYNC_MAX_RETRIES", "10")
+
+
+def async_retry_delay_seconds():
+    return __get_env("ASYNC_RETRY_DELAY_SECONDS", "1")

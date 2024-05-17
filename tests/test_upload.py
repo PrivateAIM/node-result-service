@@ -8,8 +8,8 @@ from tests.common.rest import wrap_bytes_for_request
 pytestmark = pytest.mark.live
 
 
-def test_200_submit_to_upload(test_client, rng, api, analysis_id):
-    analysis_file_count_old = len(api.get_analysis_files())
+def test_200_submit_to_upload(test_client, rng, api_client, analysis_id):
+    analysis_file_count_old = len(api_client.get_analysis_file_list().data)
 
     blob = next_random_bytes(rng)
     r = test_client.put(
@@ -21,7 +21,7 @@ def test_200_submit_to_upload(test_client, rng, api, analysis_id):
     assert r.status_code == status.HTTP_204_NO_CONTENT
 
     def __check_analysis_file_count_increases():
-        analysis_file_count_new = len(api.get_analysis_files())
+        analysis_file_count_new = len(api_client.get_analysis_file_list().data)
         return analysis_file_count_new > analysis_file_count_old
 
     assert eventually(__check_analysis_file_count_increases)

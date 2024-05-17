@@ -1,46 +1,95 @@
-from io import BytesIO
-
 import pytest
 
-from tests.common.helpers import next_prefixed_name, is_valid_uuid, next_random_bytes
+from project.hub import (
+    format_analysis_bucket_name,
+    BucketType,
+)
+from tests.common.helpers import next_prefixed_name, eventually, next_random_bytes
 
 pytestmark = pytest.mark.live
 
 
-def test_upload_to_bucket(api, rng, analysis_id):
-    # 1) upload file with random name to bucket
-    result_bucket_name = f"analysis-result-files.{analysis_id}"
+def test_auth_acquire_token(auth_client):
+    assert auth_client.get_access_token_object() is not None
+
+
+def test_auth_no_reissue(auth_client):
+    at = auth_client.get_access_token_object()
+    at_new = auth_client.get_access_token_object()
+
+    assert at.access_token == at_new.access_token
+
+
+@pytest.fixture
+def result_bucket_name(analysis_id, api_client):
+    bucket_types: tuple[BucketType, ...] = ("CODE", "TEMP", "RESULT")
+
+    # check that buckets are eventually created (happens asynchronously)
+    def _check_buckets_exist():
+        for bucket_type in bucket_types:
+            bucket_name = format_analysis_bucket_name(analysis_id, bucket_type)
+            bucket = api_client.get_bucket_by_id_or_name(bucket_name)
+
+            if bucket is None:
+                return False
+
+        return True
+
+    assert eventually(_check_buckets_exist)
+
+    # check that buckets are listed correctly
+    bucket_list = api_client.get_bucket_list()
+
+    for bucket_type in bucket_types:
+        bucket_name = format_analysis_bucket_name(analysis_id, bucket_type)
+        assert any([b.name == bucket_name for b in bucket_list.data])
+
+    yield format_analysis_bucket_name(analysis_id, "RESULT")
+
+
+@pytest.fixture
+def uploaded_bucket_file(result_bucket_name, api_client, rng):
     file_name = next_prefixed_name()
     file_blob = next_random_bytes(rng)
 
-    bucket_file_lst = api.upload_to_bucket(
-        result_bucket_name, file_name, BytesIO(file_blob)
+    # check that bucket file is created
+    bucket_file_created_list = api_client.upload_to_bucket(
+        result_bucket_name, file_name, file_blob
     )
+    assert len(bucket_file_created_list.data) == 1
 
-    # 2) check that the endpoint returned a single file
-    assert len(bucket_file_lst) == 1
-
-    # 3) check that the file matches the uploaded file
-    bucket_file = bucket_file_lst[0]
-
+    # check that metadata aligns with file name and blob size
+    bucket_file = bucket_file_created_list.data[0]
     assert bucket_file.name == file_name
-    assert is_valid_uuid(bucket_file.id)
+    assert bucket_file.size == len(file_blob)
 
-    # 4) link uploaded file to analysis
-    analysis_file = api.link_file_to_analysis(
-        analysis_id, bucket_file.id, bucket_file.name, "RESULT"
+    # check that bucket file appears in list
+    bucket_file_list = api_client.get_bucket_file_list()
+    assert any([bf.id == bucket_file.id for bf in bucket_file_list.data])
+
+    yield file_blob, bucket_file
+
+
+def test_link_bucket_file_to_analysis(uploaded_bucket_file, analysis_id, api_client):
+    _, bucket_file = uploaded_bucket_file
+
+    # check that the analysis file was created
+    analysis_file = api_client.link_bucket_file_to_analysis(
+        analysis_id, bucket_file.id, bucket_file.name, bucket_type="RESULT"
     )
 
     assert analysis_file.name == bucket_file.name
-    assert is_valid_uuid(analysis_file.id)
-    assert analysis_file.type == "RESULT"
     assert analysis_file.bucket_file_id == bucket_file.id
 
-    # 5) check that uploaded file appears in list of analysis files
-    analysis_file_list = api.get_analysis_files()
+    # check that it appears in the list
+    analysis_file_list = api_client.get_analysis_file_list()
+    assert any([af.id == analysis_file.id for af in analysis_file_list.data])
 
-    assert analysis_file.id in [f.id for f in analysis_file_list]
 
-    # 6) download the file and check that it's identical with the submitted bytes
-    bucket_file_data = next(api.stream_bucket_file(bucket_file.id))
-    assert bucket_file_data == file_blob
+def test_stream_bucket_file(uploaded_bucket_file, api_client):
+    file_blob, bucket_file = uploaded_bucket_file
+
+    # default chunk size is 1024 and the blobs in these tests are 16 bytes large, so one call to next()
+    # should fetch the blob in its entirety from hub
+    remote_file_blob = next(api_client.stream_bucket_file(bucket_file.id))
+    assert file_blob == remote_file_blob

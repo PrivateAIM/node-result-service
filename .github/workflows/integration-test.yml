@@ -28,17 +28,19 @@ jobs:
         run: python -m pip install poetry
       - name: Install dependencies
         run: poetry install
+      - name: Copy environment variables
+        run: cp .env.example .env.test
       - name: Create local bucket
         run: poetry run flame-result migrate --no-verify "$MINIO_ROOT_USER" "$MINIO_ROOT_PASSWORD" "$MINIO_LOCAL_BUCKET_NAME"
       - name: Run tests
         run: poetry run pytest
         env:
-          PYTEST__MINIO__ACCESS_KEY: ${{env.MINIO_ROOT_USER}}
-          PYTEST__MINIO__SECRET_KEY: ${{env.MINIO_ROOT_PASSWORD}}
-          PYTEST__MINIO__BUCKET: ${{env.MINIO_LOCAL_BUCKET_NAME}}
-          PYTEST__MINIO__ENDPOINT: localhost:9000
-          PYTEST__HUB__AUTH_USERNAME: ${{secrets.HUB_AUTH_USERNAME}}
-          PYTEST__HUB__AUTH_PASSWORD: ${{secrets.HUB_AUTH_PASSWORD}}
+          MINIO__ACCESS_KEY: ${{env.MINIO_ROOT_USER}}
+          MINIO__SECRET_KEY: ${{env.MINIO_ROOT_PASSWORD}}
+          MINIO__BUCKET: ${{env.MINIO_LOCAL_BUCKET_NAME}}
+          MINIO__ENDPOINT: localhost:9000
+          HUB__AUTH_USERNAME: ${{secrets.HUB_AUTH_USERNAME}}
+          HUB__AUTH_PASSWORD: ${{secrets.HUB_AUTH_PASSWORD}}
 
     services:
       minio:

@@ -12,9 +12,9 @@ from project.dependencies import (
     get_local_minio,
     get_settings,
     get_client_id,
-    get_access_token,
+    get_api_client,
 )
-from project.hub import ApiWrapper, AccessToken
+from project.hub import FlameHubClient, format_analysis_bucket_name
 
 router = APIRouter()
 logger = logging.getLogger(__name__)
@@ -24,7 +24,7 @@ def __bg_upload_to_remote(
     minio: Minio,
     bucket_name: str,
     object_name: str,
-    api: ApiWrapper,
+    api: FlameHubClient,
     client_id: str,
 ):
     logger.info(
@@ -40,18 +40,20 @@ def __bg_upload_to_remote(
         minio_resp = minio.get_object(bucket_name, object_name)
         # upload to remote
         bucket_file_lst = api.upload_to_bucket(
-            f"analysis-result-files.{client_id}",
+            format_analysis_bucket_name(client_id, "RESULT"),
             object_name,
             io.BytesIO(minio_resp.data),
             minio_resp.headers.get("Content-Type", "application/octet-stream"),
         )
 
         # check that only one file has been submitted
-        assert len(bucket_file_lst) == 1
+        assert len(bucket_file_lst.data) == 1
         # fetch file s.t. it can be linked
-        bucket_file = bucket_file_lst[0]
+        bucket_file = bucket_file_lst.data[0]
         # link file to analysis
-        api.link_file_to_analysis(client_id, bucket_file.id, bucket_file.name, "RESULT")
+        api.link_bucket_file_to_analysis(
+            client_id, bucket_file.id, bucket_file.name, "RESULT"
+        )
         # remove from local minio
         minio.remove_object(bucket_name, object_name)
     finally:
@@ -73,7 +75,7 @@ async def upload_to_remote(
     background_tasks: BackgroundTasks,
     settings: Annotated[Settings, Depends(get_settings)],
     local_minio: Annotated[Minio, Depends(get_local_minio)],
-    api_access_token: Annotated[AccessToken, Depends(get_access_token)],
+    api_client: Annotated[FlameHubClient, Depends(get_api_client)],
 ):
     """Upload a file to the local S3 instance and send it to FLAME Hub in the background.
     The request is successful if the file was uploaded to the local S3 instance.
@@ -82,7 +84,7 @@ async def upload_to_remote(
     This endpoint is to be used for submitting final results of a federated analysis.
 
     Currently, there is no way of determining the status or progress of the upload to the FLAME Hub."""
-    object_id = str(uuid.uuid4())
+    object_id = uuid.uuid4()
     object_name = f"upload/{client_id}/{object_id}"
 
     local_minio.put_object(
@@ -93,13 +95,11 @@ async def upload_to_remote(
         content_type=file.content_type or "application/octet-stream",
     )
 
-    api = ApiWrapper(str(settings.hub.api_base_url), api_access_token.access_token)
-
     background_tasks.add_task(
         __bg_upload_to_remote,
         local_minio,
         settings.minio.bucket,
         object_name,
-        api,
+        api_client,
         client_id,
     )

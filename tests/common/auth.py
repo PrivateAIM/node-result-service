@@ -2,12 +2,13 @@ import os
 from datetime import timedelta, datetime, timezone
 from functools import lru_cache
 from typing import Any
+from uuid import UUID
 
 import httpx
 from httpx import Request
 from jwcrypto import jwk, jwt
 
-from tests.common.env import PYTEST_OIDC_CLIENT_ID_CLAIM_NAME
+from tests.common import env
 
 
 @lru_cache()
@@ -51,13 +52,13 @@ def issue_access_token(
 
 
 def issue_client_access_token(
-    client_id: str = "flame",
+    client_id: UUID | str = "flame",
     issued_at: datetime | None = None,
     expires_in: timedelta | None = None,
 ):
     return issue_access_token(
         {
-            PYTEST_OIDC_CLIENT_ID_CLAIM_NAME: client_id,
+            env.oidc_client_id_claim_name(): str(client_id),
         },
         issued_at,
         expires_in,

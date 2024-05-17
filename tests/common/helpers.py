@@ -3,18 +3,19 @@ import time
 import uuid
 from typing import Callable
 
-from tests.common.env import PYTEST_ASYNC_MAX_RETRIES
+from tests.common import env
 
 
 def eventually(predicate: Callable[[], bool]) -> bool:
     """Return True if the predicate passed into this function returns True after a set amount of attempts.
     Between each attempt there is a delay of one second. The amount of retries can be configured with the
     PYTEST__ASYNC_MAX_RETRIES environment variable."""
-    max_retries = int(PYTEST_ASYNC_MAX_RETRIES)
+    max_retries = int(env.async_max_retries())
+    delay_secs = int(env.async_retry_delay_seconds())
 
     for _ in range(max_retries):
         if not predicate():
-            time.sleep(1)
+            time.sleep(delay_secs)
 
         return True
 

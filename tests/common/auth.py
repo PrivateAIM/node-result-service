@@ -8,7 +8,7 @@ import httpx
 from httpx import Request
 from jwcrypto import jwk, jwt
 
-from tests.common.env import PYTEST_OIDC_CLIENT_ID_CLAIM_NAME
+from tests.common import env
 
 
 @lru_cache()
@@ -58,7 +58,7 @@ def issue_client_access_token(
 ):
     return issue_access_token(
         {
-            PYTEST_OIDC_CLIENT_ID_CLAIM_NAME: str(client_id),
+            env.oidc_client_id_claim_name(): str(client_id),
         },
         issued_at,
         expires_in,

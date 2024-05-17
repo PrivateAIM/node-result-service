@@ -7,54 +7,15 @@ import pytest
 from jwcrypto import jwk
 from starlette.testclient import TestClient
 
-from project.config import Settings, MinioBucketConfig, OIDCConfig, HubConfig
-from project.dependencies import get_settings
 from project.hub import FlamePasswordAuthClient, FlameHubClient
 from project.server import app
+from tests.common import env
 from tests.common.auth import get_oid_test_jwk
-from tests.common.env import (
-    PYTEST_OIDC_CERTS_URL,
-    PYTEST_MINIO_ENDPOINT,
-    PYTEST_MINIO_ACCESS_KEY,
-    PYTEST_MINIO_SECRET_KEY,
-    PYTEST_MINIO_REGION,
-    PYTEST_MINIO_USE_SSL,
-    PYTEST_MINIO_BUCKET,
-    PYTEST_OIDC_CLIENT_ID_CLAIM_NAME,
-    PYTEST_HUB_AUTH_BASE_URL,
-    PYTEST_HUB_AUTH_USERNAME,
-    PYTEST_HUB_AUTH_PASSWORD,
-    PYTEST_HUB_API_BASE_URL,
-)
 from tests.common.helpers import next_prefixed_name
-
-
-def __get_settings_override() -> Settings:
-    return Settings(
-        hub=HubConfig(
-            api_base_url=PYTEST_HUB_API_BASE_URL,
-            auth_base_url=PYTEST_HUB_AUTH_BASE_URL,
-            auth_username=PYTEST_HUB_AUTH_USERNAME,
-            auth_password=PYTEST_HUB_AUTH_PASSWORD,
-        ),
-        minio=MinioBucketConfig(
-            endpoint=PYTEST_MINIO_ENDPOINT,
-            access_key=PYTEST_MINIO_ACCESS_KEY,
-            secret_key=PYTEST_MINIO_SECRET_KEY,
-            region=PYTEST_MINIO_REGION,
-            use_ssl=PYTEST_MINIO_USE_SSL,
-            bucket=PYTEST_MINIO_BUCKET,
-        ),
-        oidc=OIDCConfig(
-            certs_url=PYTEST_OIDC_CERTS_URL,
-            client_id_claim_name=PYTEST_OIDC_CLIENT_ID_CLAIM_NAME,
-        ),
-    )
 
 
 @pytest.fixture(scope="package")
 def test_app():
-    app.dependency_overrides[get_settings] = __get_settings_override
     return app
 
 
@@ -79,7 +40,7 @@ def setup_jwks_endpoint():
             self.end_headers()
             self.wfile.write(jwks_str.encode("utf-8"))
 
-    httpd_url = urllib.parse.urlparse(PYTEST_OIDC_CERTS_URL)
+    httpd_url = urllib.parse.urlparse(env.oidc_certs_url())
     httpd = HTTPServer((httpd_url.hostname, httpd_url.port), JWKSHandler)
 
     t = threading.Thread(target=httpd.serve_forever)
@@ -98,16 +59,16 @@ def rng():
 @pytest.fixture(scope="package")
 def auth_client():
     return FlamePasswordAuthClient(
-        PYTEST_HUB_AUTH_USERNAME,
-        PYTEST_HUB_AUTH_PASSWORD,
-        base_url=PYTEST_HUB_AUTH_BASE_URL,
+        env.hub_auth_username(),
+        env.hub_auth_password(),
+        base_url=env.hub_auth_base_url(),
         force_acquire_on_init=True,
     )
 
 
 @pytest.fixture(scope="package")
 def api_client(auth_client):
-    return FlameHubClient(auth_client, base_url=PYTEST_HUB_API_BASE_URL)
+    return FlameHubClient(auth_client, base_url=env.hub_api_base_url())
 
 
 @pytest.fixture

@@ -10,6 +10,8 @@ from tests.common.rest import detail_of
 endpoints = [
     ("GET", f"/intermediate/{uuid.uuid4()}"),  # UUID can be arbitrary for auth checks
     ("PUT", "/intermediate"),
+    ("GET", f"/local/{uuid.uuid4()}"),
+    ("PUT", "/local"),
     ("PUT", "/final"),
 ]
 

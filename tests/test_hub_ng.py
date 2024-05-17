@@ -14,7 +14,7 @@ from tests.common.env import (
 )
 from tests.common.helpers import next_prefixed_name, eventually, next_random_bytes
 
-pytestmark = pytest.mark.hub
+pytestmark = pytest.mark.live
 
 
 @pytest.fixture(scope="module")

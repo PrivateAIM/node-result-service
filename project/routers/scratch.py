@@ -15,9 +15,9 @@ from project.dependencies import (
     get_settings,
     get_local_minio,
     get_client_id,
-    get_access_token,
+    get_api_client,
 )
-from project.hub import AccessToken, ApiWrapper
+from project.hub_ng import FlameHubClient, format_analysis_bucket_name
 
 router = APIRouter()
 logger = logging.getLogger(__name__)
@@ -34,7 +34,7 @@ def __bg_upload_to_remote(
     minio: Minio,
     bucket_name: str,
     object_name: str,
-    api: ApiWrapper,
+    api: FlameHubClient,
     client_id: str,
     object_id: str,
 ):
@@ -47,16 +47,18 @@ def __bg_upload_to_remote(
     try:
         minio_resp = minio.get_object(bucket_name, object_name)
         bucket_file_lst = api.upload_to_bucket(
-            f"analysis-temp-files.{client_id}",
+            format_analysis_bucket_name(client_id, "TEMP"),
             object_name,
             io.BytesIO(minio_resp.data),
             minio_resp.headers.get("Content-Type", "application/octet-stream"),
         )
 
-        assert len(bucket_file_lst) == 1
-        bucket_file = bucket_file_lst[0]
-        api.link_file_to_analysis(client_id, bucket_file.id, bucket_file.name, "TEMP")
-        object_id_to_hub_bucket_dict[object_id] = bucket_file.id
+        assert len(bucket_file_lst.data) == 1
+        bucket_file = bucket_file_lst.data[0]
+        api.link_bucket_file_to_analysis(
+            client_id, bucket_file.id, bucket_file.name, "TEMP"
+        )
+        object_id_to_hub_bucket_dict[object_id] = str(bucket_file.id)
         minio.remove_object(bucket_name, object_name)
     finally:
         if minio is not None:
@@ -76,7 +78,7 @@ async def upload_to_scratch(
     settings: Annotated[Settings, Depends(get_settings)],
     minio: Annotated[Minio, Depends(get_local_minio)],
     request: Request,
-    api_access_token: Annotated[AccessToken, Depends(get_access_token)],
+    api_client: Annotated[FlameHubClient, Depends(get_api_client)],
     background_tasks: BackgroundTasks,
 ):
     """Upload a file to the local S3 instance.
@@ -96,7 +98,6 @@ async def upload_to_scratch(
         content_type=file.content_type or "application/octet-stream",
     )
 
-    api = ApiWrapper(str(settings.hub.api_base_url), api_access_token.access_token)
     object_id_to_hub_bucket_dict[object_id] = None
 
     background_tasks.add_task(
@@ -104,7 +105,7 @@ async def upload_to_scratch(
         minio,
         settings.minio.bucket,
         object_name,
-        api,
+        api_client,
         client_id,
         object_id,
     )
@@ -128,7 +129,7 @@ async def read_from_scratch(
     client_id: Annotated[str, Depends(get_client_id)],
     object_id: uuid.UUID,
     settings: Annotated[Settings, Depends(get_settings)],
-    api_access_token: Annotated[AccessToken, Depends(get_access_token)],
+    api_client: Annotated[FlameHubClient, Depends(get_api_client)],
 ):
     """Get a file from the local S3 instance.
     The file must have previously been uploaded using the PUT method of this endpoint.
@@ -136,22 +137,21 @@ async def read_from_scratch(
 
     This endpoint is to be used for retrieving intermediate results of a federated analysis.
     """
-    api = ApiWrapper(str(settings.hub.api_base_url), api_access_token.access_token)
-    oid = str(object_id)
+    object_id_str = str(object_id)
 
     if (
-        oid not in object_id_to_hub_bucket_dict
-        or object_id_to_hub_bucket_dict[oid] is None
+        object_id_str not in object_id_to_hub_bucket_dict
+        or object_id_to_hub_bucket_dict[object_id_str] is None
     ):
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
-            detail=f"Object with ID {oid} does not exist",
+            detail=f"Object with ID {object_id} does not exist",
         )
 
-    bucket_file_id = object_id_to_hub_bucket_dict[oid]
+    bucket_file_id = object_id_to_hub_bucket_dict[object_id_str]
 
     async def _stream_bucket_file():
-        for b in api.stream_bucket_file(bucket_file_id):
+        for b in api_client.stream_bucket_file(bucket_file_id):
             yield b
 
     return StreamingResponse(_stream_bucket_file())

@@ -7,7 +7,7 @@ from pathlib import Path
 import tomli
 from fastapi import FastAPI
 
-from project.routers import upload, scratch
+from project.routers import final, intermediate, local
 
 
 @asynccontextmanager
@@ -47,12 +47,16 @@ app = FastAPI(
     },
     openapi_tags=[
         {
-            "name": "upload",
-            "description": "Upload files for submission to FLAME hub",
+            "name": "final",
+            "description": "Upload final results to FLAME Hub",
         },
         {
-            "name": "scratch",
-            "description": "Upload files to local object storage",
+            "name": "intermediate",
+            "description": "Upload intermediate results to FLAME Hub",
+        },
+        {
+            "name": "local",
+            "description": "Upload intermediate results to local storage",
         },
     ],
 )
@@ -65,13 +69,19 @@ async def do_healthcheck():
 
 
 app.include_router(
-    upload.router,
-    prefix="/upload",
-    tags=["upload"],
+    final.router,
+    prefix="/final",
+    tags=["final"],
 )
 
 app.include_router(
-    scratch.router,
-    prefix="/scratch",
-    tags=["scratch"],
+    intermediate.router,
+    prefix="/intermediate",
+    tags=["intermediate"],
+)
+
+app.include_router(
+    local.router,
+    prefix="/local",
+    tags=["local"],
 )

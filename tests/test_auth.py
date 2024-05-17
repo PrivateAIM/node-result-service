@@ -8,9 +8,11 @@ from tests.common.auth import BearerAuth, issue_client_access_token, issue_acces
 from tests.common.rest import detail_of
 
 endpoints = [
-    ("GET", f"/scratch/{uuid.uuid4()}"),  # UUID can be arbitrary for auth checks
-    ("PUT", "/scratch"),
-    ("PUT", "/upload"),
+    ("GET", f"/intermediate/{uuid.uuid4()}"),  # UUID can be arbitrary for auth checks
+    ("PUT", "/intermediate"),
+    ("GET", f"/local/{uuid.uuid4()}"),
+    ("PUT", "/local"),
+    ("PUT", "/final"),
 ]
 
 

@@ -1,7 +1,6 @@
 import pytest
 
 from project.hub import (
-    format_analysis_bucket_name,
     BucketType,
 )
 from tests.common.helpers import next_prefixed_name, eventually, next_random_bytes
@@ -27,8 +26,8 @@ def result_bucket_name(analysis_id, api_client):
     # check that buckets are eventually created (happens asynchronously)
     def _check_buckets_exist():
         for bucket_type in bucket_types:
-            bucket_name = format_analysis_bucket_name(analysis_id, bucket_type)
-            bucket = api_client.get_bucket_by_id_or_name(bucket_name)
+            analysis_bucket = api_client.get_analysis_bucket(analysis_id, bucket_type)
+            bucket = api_client.get_bucket_by_id(analysis_bucket.external_id)
 
             if bucket is None:
                 return False
@@ -36,15 +35,6 @@ def result_bucket_name(analysis_id, api_client):
         return True
 
     assert eventually(_check_buckets_exist)
-
-    # check that buckets are listed correctly
-    bucket_list = api_client.get_bucket_list()
-
-    for bucket_type in bucket_types:
-        bucket_name = format_analysis_bucket_name(analysis_id, bucket_type)
-        assert any([b.name == bucket_name for b in bucket_list.data])
-
-    yield format_analysis_bucket_name(analysis_id, "RESULT")
 
 
 @pytest.fixture
@@ -73,16 +63,18 @@ def uploaded_bucket_file(result_bucket_name, api_client, rng):
 def test_link_bucket_file_to_analysis(uploaded_bucket_file, analysis_id, api_client):
     _, bucket_file = uploaded_bucket_file
 
+    analysis_bucket = api_client.get_analysis_bucket(analysis_id, "RESULT")
+
     # check that the analysis file was created
     analysis_file = api_client.link_bucket_file_to_analysis(
-        analysis_id, bucket_file.id, bucket_file.name, bucket_type="RESULT"
+        analysis_bucket.external_id, bucket_file.id, bucket_file.name
     )
 
     assert analysis_file.name == bucket_file.name
     assert analysis_file.bucket_file_id == bucket_file.id
 
     # check that it appears in the list
-    analysis_file_list = api_client.get_analysis_file_list()
+    analysis_file_list = api_client.get_analysis_bucket_file_list()
     assert any([af.id == analysis_file.id for af in analysis_file_list.data])
 
 

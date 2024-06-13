@@ -54,16 +54,23 @@ class BucketFile(BaseModel):
     created_at: datetime
     updated_at: datetime
 
+class AnalysisBucket(BaseModel):
+    id: UUID
+    type: BucketType
+    external_id: UUID
+    analysis_id: UUID
+    created_at: datetime
+    updated_at: datetime
 
-class AnalysisFile(BaseModel):
+class AnalysisBucketFile(BaseModel):
     id: UUID
     name: Optional[str]
-    type: BucketType
     root: bool
     created_at: datetime
     updated_at: datetime
-    bucket_file_id: UUID
-    analysis_id: UUID
+    external_id: UUID
+    bucket_id: UUID
+    analysis_id: Optional[UUID]
 
 
 class ResourceListMeta(BaseModel):
@@ -241,9 +248,9 @@ class FlameHubClient:
         r.raise_for_status()
         return ResourceList[Bucket](**r.json())
 
-    def get_bucket_by_id_or_name(self, bucket_id_or_name: str | UUID) -> Bucket | None:
+    def get_bucket_by_id(self, bucket_id: str | UUID) -> Bucket | None:
         r = httpx.get(
-            urljoin(self.base_url, f"/storage/buckets/{bucket_id_or_name}"),
+            urljoin(self.base_url, f"/storage/buckets/{bucket_id}"),
             headers=self.auth_client.get_auth_bearer_header(),
         )
 
@@ -282,37 +289,52 @@ class FlameHubClient:
         r.raise_for_status()
         return ResourceList[BucketFile](**r.json())
 
-    def get_analysis_file_list(self) -> ResourceList[AnalysisFile]:
+    def get_analysis_bucket_file_list(self) -> ResourceList[AnalysisBucketFile]:
         r = httpx.get(
-            urljoin(self.base_url, "/analysis-files"),
+            urljoin(self.base_url, "/analysis-bucket-files"),
             headers=self.auth_client.get_auth_bearer_header(),
         )
 
         r.raise_for_status()
-        return ResourceList[AnalysisFile](**r.json())
+        return ResourceList[AnalysisBucketFile](**r.json())
+
+    def get_analysis_bucket(
+            self,
+            analysis_id: str | UUID,
+            type: BucketType
+    ) -> AnalysisBucket:
+        r = httpx.get(
+            urljoin(self.base_url, "/analysis-buckets?filter[analysis_id]=" + str(analysis_id) + "&filter[type]=" + str(type)),
+            headers=self.auth_client.get_auth_bearer_header(),
+        )
+
+        r.raise_for_status()
+        lst = ResourceList[AnalysisBucket](**r.json())
+
+        assert len(lst.data) == 1
+
+        return lst.data[0]
 
     def link_bucket_file_to_analysis(
         self,
-        analysis_id: str | UUID,
-        bucket_file_id: str | UUID,
+        bucket_id: str | UUID,
+        external_id: str | UUID,
         bucket_file_name: str,
-        bucket_type: BucketType,
         root=True,
-    ) -> AnalysisFile:
+    ) -> AnalysisBucketFile:
         r = httpx.post(
-            urljoin(self.base_url, "/analysis-files"),
+            urljoin(self.base_url, "/analysis-bucket-files"),
             headers=self.auth_client.get_auth_bearer_header(),
             json={
-                "analysis_id": str(analysis_id),
-                "bucket_file_id": str(bucket_file_id),
-                "type": bucket_type,
+                "bucket_id": str(bucket_id),
+                "external_id": str(external_id),
                 "name": bucket_file_name,
                 "root": root,
             },
         )
 
         r.raise_for_status()
-        return AnalysisFile(**r.json())
+        return AnalysisBucketFile(**r.json())
 
     def stream_bucket_file(self, bucket_file_id: str | UUID, chunk_size=1024):
         with httpx.stream(

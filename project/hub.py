@@ -54,6 +54,7 @@ class BucketFile(BaseModel):
     created_at: datetime
     updated_at: datetime
 
+
 class AnalysisBucket(BaseModel):
     id: UUID
     type: BucketType
@@ -61,6 +62,7 @@ class AnalysisBucket(BaseModel):
     analysis_id: UUID
     created_at: datetime
     updated_at: datetime
+
 
 class AnalysisBucketFile(BaseModel):
     id: UUID
@@ -299,12 +301,16 @@ class FlameHubClient:
         return ResourceList[AnalysisBucketFile](**r.json())
 
     def get_analysis_bucket(
-            self,
-            analysis_id: str | UUID,
-            type: BucketType
+        self, analysis_id: str | UUID, bucket_type: BucketType
     ) -> AnalysisBucket:
         r = httpx.get(
-            urljoin(self.base_url, "/analysis-buckets?filter[analysis_id]=" + str(analysis_id) + "&filter[type]=" + str(type)),
+            urljoin(
+                self.base_url,
+                "/analysis-buckets?filter[analysis_id]="
+                + str(analysis_id)
+                + "&filter[type]="
+                + str(bucket_type),
+            ),
             headers=self.auth_client.get_auth_bearer_header(),
         )
 
@@ -317,8 +323,8 @@ class FlameHubClient:
 
     def link_bucket_file_to_analysis(
         self,
-        bucket_id: str | UUID,
-        external_id: str | UUID,
+        analysis_bucket_id: str | UUID,
+        bucket_file_id: str | UUID,
         bucket_file_name: str,
         root=True,
     ) -> AnalysisBucketFile:
@@ -326,8 +332,8 @@ class FlameHubClient:
             urljoin(self.base_url, "/analysis-bucket-files"),
             headers=self.auth_client.get_auth_bearer_header(),
             json={
-                "bucket_id": str(bucket_id),
-                "external_id": str(external_id),
+                "bucket_id": str(analysis_bucket_id),
+                "external_id": str(bucket_file_id),
                 "name": bucket_file_name,
                 "root": root,
             },

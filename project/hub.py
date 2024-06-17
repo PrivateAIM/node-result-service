@@ -88,12 +88,6 @@ def _now():
     return int(time.time())
 
 
-def format_analysis_bucket_name(
-    analysis_id: str | UUID, bucket_type: BucketType
-) -> str:
-    return f"analysis-{bucket_type.lower()}-files.{analysis_id}"
-
-
 class FlamePasswordAuthClient:
     def __init__(
         self,

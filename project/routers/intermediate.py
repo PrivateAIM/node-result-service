@@ -17,7 +17,7 @@ from project.dependencies import (
     get_client_id,
     get_api_client,
 )
-from project.hub import FlameHubClient, format_analysis_bucket_name
+from project.hub import FlameHubClient
 
 router = APIRouter()
 logger = logging.getLogger(__name__)
@@ -46,8 +46,12 @@ def __bg_upload_to_remote(
 
     try:
         minio_resp = minio.get_object(bucket_name, object_name)
+
+        # fetch analysis bucket
+        analysis_bucket = api.get_analysis_bucket(client_id, "TEMP")
+
         bucket_file_lst = api.upload_to_bucket(
-            format_analysis_bucket_name(client_id, "TEMP"),
+            analysis_bucket.external_id,
             object_name,
             io.BytesIO(minio_resp.data),
             minio_resp.headers.get("Content-Type", "application/octet-stream"),
@@ -56,7 +60,7 @@ def __bg_upload_to_remote(
         assert len(bucket_file_lst.data) == 1
         bucket_file = bucket_file_lst.data[0]
         api.link_bucket_file_to_analysis(
-            client_id, bucket_file.id, bucket_file.name, "TEMP"
+            analysis_bucket.id, bucket_file.id, bucket_file.name
         )
         object_id_to_hub_bucket_dict[object_id] = str(bucket_file.id)
         minio.remove_object(bucket_name, object_name)

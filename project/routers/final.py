@@ -14,7 +14,7 @@ from project.dependencies import (
     get_client_id,
     get_api_client,
 )
-from project.hub import FlameHubClient, format_analysis_bucket_name
+from project.hub import FlameHubClient
 
 router = APIRouter()
 logger = logging.getLogger(__name__)
@@ -38,9 +38,13 @@ def __bg_upload_to_remote(
     try:
         # fetch from local minio
         minio_resp = minio.get_object(bucket_name, object_name)
+
+        # fetch analysis bucket
+        analysis_bucket = api.get_analysis_bucket(client_id, "RESULT")
+
         # upload to remote
         bucket_file_lst = api.upload_to_bucket(
-            format_analysis_bucket_name(client_id, "RESULT"),
+            analysis_bucket.external_id,
             object_name,
             io.BytesIO(minio_resp.data),
             minio_resp.headers.get("Content-Type", "application/octet-stream"),
@@ -48,11 +52,12 @@ def __bg_upload_to_remote(
 
         # check that only one file has been submitted
         assert len(bucket_file_lst.data) == 1
-        # fetch file s.t. it can be linked
+        # fetch file s.t. it can be linked to result bucket
         bucket_file = bucket_file_lst.data[0]
+        analysis_bucket = api.get_analysis_bucket(client_id, "RESULT")
         # link file to analysis
         api.link_bucket_file_to_analysis(
-            client_id, bucket_file.id, bucket_file.name, "RESULT"
+            analysis_bucket.id, bucket_file.id, bucket_file.name
         )
         # remove from local minio
         minio.remove_object(bucket_name, object_name)

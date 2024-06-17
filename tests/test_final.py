@@ -9,7 +9,7 @@ pytestmark = pytest.mark.live
 
 
 def test_200_submit_to_upload(test_client, rng, api_client, analysis_id):
-    analysis_file_count_old = len(api_client.get_analysis_file_list().data)
+    analysis_file_count_old = len(api_client.get_analysis_bucket_file_list().data)
 
     blob = next_random_bytes(rng)
     r = test_client.put(
@@ -21,7 +21,7 @@ def test_200_submit_to_upload(test_client, rng, api_client, analysis_id):
     assert r.status_code == status.HTTP_204_NO_CONTENT
 
     def __check_analysis_file_count_increases():
-        analysis_file_count_new = len(api_client.get_analysis_file_list().data)
+        analysis_file_count_new = len(api_client.get_analysis_bucket_file_list().data)
         return analysis_file_count_new > analysis_file_count_old
 
     assert eventually(__check_analysis_file_count_increases)

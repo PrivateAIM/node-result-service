@@ -52,11 +52,12 @@ def __bg_upload_to_remote(
 
         # check that only one file has been submitted
         assert len(bucket_file_lst.data) == 1
-        # fetch file s.t. it can be linked
+        # fetch file s.t. it can be linked to result bucket
         bucket_file = bucket_file_lst.data[0]
+        analysis_bucket = api.get_analysis_bucket(client_id, "RESULT")
         # link file to analysis
         api.link_bucket_file_to_analysis(
-            client_id, bucket_file.id, bucket_file.name
+            analysis_bucket.id, bucket_file.id, bucket_file.name
         )
         # remove from local minio
         minio.remove_object(bucket_name, object_name)

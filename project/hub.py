@@ -95,7 +95,7 @@ class FlamePasswordAuthClient:
         self,
         username: str,
         password: str,
-        base_url="https://core.privateaim.net",
+        base_url="https://auth.privateaim.net",
         token_expiration_leeway_seconds=60,
         force_acquire_on_init=False,
     ):

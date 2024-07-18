@@ -40,20 +40,21 @@ $ docker run --rm -p 8080:8080 -e HUB__AUTH_USERNAME=admin \
 
 The following table shows all available configuration options.
 
-| **Environment variable**   | **Description**                                          | **Default**                 | **Required** |
-|----------------------------|----------------------------------------------------------|-----------------------------|:------------:|
-| HUB__API_BASE_URL          | Base URL for the FLAME Hub API                           | https://api.privateaim.net  |              |
-| HUB__AUTH_BASE_URL         | Base URL for the FLAME Auth API                          | https://auth.privateaim.net |              |
-| HUB__AUTH_USERNAME         | Username to use for obtaining access tokens              |                             |      x       |
-| HUB__AUTH_PASSWORD         | Password to use for obtaining access tokens              |                             |      x       |
-| MINIO__ENDPOINT            | MinIO S3 API endpoint (without scheme)                   |                             |      x       |
-| MINIO__ACCESS_KEY          | Access key for interacting with MinIO S3 API             |                             |      x       |
-| MINIO__SECRET_KEY          | Secret key for interacting with MinIO S3 API             |                             |      x       |
-| MINIO__BUCKET              | Name of S3 bucket to store result files in               |                             |      x       |
-| MINIO__REGION              | Region of S3 bucket to store result files in             | us-east-1                   |              |
-| MINIO__USE_SSL             | Flag for en-/disabling encrypted traffic to MinIO S3 API | 0                           |              |
-| OIDC__CERTS_URL            | URL to OIDC-complaint JWKS endpoint for validating JWTs  |                             |      x       |
-| OIDC__CLIENT_ID_CLAIM_NAME | JWT claim to identify authenticated requests with        | client_id                   |              |
+| **Environment variable**   | **Description**                                          | **Default**                    | **Required** |
+|----------------------------|----------------------------------------------------------|--------------------------------|:------------:|
+| HUB__CORE_BASE_URL         | Base URL for the FLAME Core API                          | https://core.privateaim.net    |              |
+| HUB__STORAGE_BASE_URL      | Base URL for the FLAME Storage API                       | https://storage.privateaim.net |              |
+| HUB__AUTH_BASE_URL         | Base URL for the FLAME Auth API                          | https://auth.privateaim.net    |              |
+| HUB__AUTH_USERNAME         | Username to use for obtaining access tokens              |                                |      x       |
+| HUB__AUTH_PASSWORD         | Password to use for obtaining access tokens              |                                |      x       |
+| MINIO__ENDPOINT            | MinIO S3 API endpoint (without scheme)                   |                                |      x       |
+| MINIO__ACCESS_KEY          | Access key for interacting with MinIO S3 API             |                                |      x       |
+| MINIO__SECRET_KEY          | Secret key for interacting with MinIO S3 API             |                                |      x       |
+| MINIO__BUCKET              | Name of S3 bucket to store result files in               |                                |      x       |
+| MINIO__REGION              | Region of S3 bucket to store result files in             | us-east-1                      |              |
+| MINIO__USE_SSL             | Flag for en-/disabling encrypted traffic to MinIO S3 API | 0                              |              |
+| OIDC__CERTS_URL            | URL to OIDC-complaint JWKS endpoint for validating JWTs  |                                |      x       |
+| OIDC__CLIENT_ID_CLAIM_NAME | JWT claim to identify authenticated requests with        | client_id                      |              |
 
 ## Note on running tests
 

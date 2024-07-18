@@ -5,6 +5,10 @@ env:
   MINIO_ROOT_PASSWORD: s3cr3t_p4ssw0rd
   MINIO_LOCAL_BUCKET_NAME: flame
   MINIO_REMOTE_BUCKET_NAME: upload
+  # Point these to the new dev instance of the FLAME Hub
+  HUB_CORE_BASE_URL: https://core.privateaim.dev
+  HUB_STORAGE_BASE_URL: https://storage.privateaim.dev
+  HUB_AUTH_BASE_URL: https://auth.privateaim.dev
 
 on:
   push:
@@ -41,6 +45,12 @@ jobs:
           MINIO__ENDPOINT: localhost:9000
           HUB__AUTH_USERNAME: ${{secrets.HUB_AUTH_USERNAME}}
           HUB__AUTH_PASSWORD: ${{secrets.HUB_AUTH_PASSWORD}}
+          # No tests against live infra are run here but these envs are set anyway to future-proof in case
+          # we ever end up testing against live infra. python-dotenv will not override existing envs so the prod
+          # URLs in the .env.example file shouldn't carry over here.
+          HUB__AUTH_BASE_URL: ${{env.HUB_AUTH_BASE_URL}}
+          HUB__CORE_BASE_URL: ${{env.HUB_CORE_BASE_URL}}
+          HUB__STORAGE_BASE_URL: ${{env.HUB_STORAGE_BASE_URL}}
 
     services:
       minio:

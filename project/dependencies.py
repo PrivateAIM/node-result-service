@@ -12,7 +12,7 @@ from minio import Minio
 from starlette import status
 
 from project.config import Settings, MinioBucketConfig
-from project.hub import FlamePasswordAuthClient, FlameHubClient
+from project.hub import FlamePasswordAuthClient, FlameCoreClient, FlameStorageClient
 
 security = HTTPBearer()
 logger = logging.getLogger(__name__)
@@ -118,11 +118,18 @@ def get_auth_client(settings: Annotated[Settings, Depends(get_settings)]):
     )
 
 
-def get_api_client(
+def get_core_client(
     settings: Annotated[Settings, Depends(get_settings)],
     auth_client: Annotated[FlamePasswordAuthClient, Depends(get_auth_client)],
 ):
-    return FlameHubClient(
+    return FlameCoreClient(
         auth_client,
-        base_url=str(settings.hub.api_base_url),
+        base_url=str(settings.hub.core_base_url),
     )
+
+
+def get_storage_client(
+    settings: Annotated[Settings, Depends(get_settings)],
+    auth_client: Annotated[FlamePasswordAuthClient, Depends(get_auth_client)],
+):
+    return FlameStorageClient(auth_client, base_url=str(settings.hub.storage_base_url))

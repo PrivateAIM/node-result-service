@@ -12,9 +12,10 @@ from project.dependencies import (
     get_local_minio,
     get_settings,
     get_client_id,
-    get_api_client,
+    get_core_client,
+    get_storage_client,
 )
-from project.hub import FlameHubClient
+from project.hub import FlameCoreClient, FlameStorageClient
 
 router = APIRouter()
 logger = logging.getLogger(__name__)
@@ -24,7 +25,8 @@ def __bg_upload_to_remote(
     minio: Minio,
     bucket_name: str,
     object_name: str,
-    api: FlameHubClient,
+    core_client: FlameCoreClient,
+    storage_client: FlameStorageClient,
     client_id: str,
 ):
     logger.info(
@@ -40,10 +42,10 @@ def __bg_upload_to_remote(
         minio_resp = minio.get_object(bucket_name, object_name)
 
         # fetch analysis bucket
-        analysis_bucket = api.get_analysis_bucket(client_id, "RESULT")
+        analysis_bucket = core_client.get_analysis_bucket(client_id, "RESULT")
 
         # upload to remote
-        bucket_file_lst = api.upload_to_bucket(
+        bucket_file_lst = storage_client.upload_to_bucket(
             analysis_bucket.external_id,
             object_name,
             io.BytesIO(minio_resp.data),
@@ -54,9 +56,9 @@ def __bg_upload_to_remote(
         assert len(bucket_file_lst.data) == 1
         # fetch file s.t. it can be linked to result bucket
         bucket_file = bucket_file_lst.data[0]
-        analysis_bucket = api.get_analysis_bucket(client_id, "RESULT")
+        analysis_bucket = core_client.get_analysis_bucket(client_id, "RESULT")
         # link file to analysis
-        api.link_bucket_file_to_analysis(
+        core_client.link_bucket_file_to_analysis(
             analysis_bucket.id, bucket_file.id, bucket_file.name
         )
         # remove from local minio
@@ -80,7 +82,8 @@ async def submit_final_result_to_hub(
     background_tasks: BackgroundTasks,
     settings: Annotated[Settings, Depends(get_settings)],
     local_minio: Annotated[Minio, Depends(get_local_minio)],
-    api_client: Annotated[FlameHubClient, Depends(get_api_client)],
+    core_client: Annotated[FlameCoreClient, Depends(get_core_client)],
+    storage_client: Annotated[FlameStorageClient, Depends(get_storage_client)],
 ):
     """Upload a file as a final result to the FLAME Hub.
     Returns a 204 on success.
@@ -101,6 +104,7 @@ async def submit_final_result_to_hub(
         local_minio,
         settings.minio.bucket,
         object_name,
-        api_client,
+        core_client,
+        storage_client,
         client_id,
     )

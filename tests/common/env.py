@@ -10,12 +10,16 @@ def __get_env(env_name: str, val_def: str | None = None) -> str:
     return val
 
 
-def hub_api_base_url():
-    return __get_env("HUB__API_BASE_URL", "https://api.privateaim.net")
+def hub_core_base_url():
+    return __get_env("HUB__CORE_BASE_URL", "https://core.privateaim.dev")
+
+
+def hub_storage_base_url():
+    return __get_env("HUB__STORAGE_BASE_URL", "https://storage.privateaim.dev")
 
 
 def hub_auth_base_url():
-    return __get_env("HUB__AUTH_BASE_URL", "https://auth.privateaim.net")
+    return __get_env("HUB__AUTH_BASE_URL", "https://auth.privateaim.dev")
 
 
 def hub_auth_username():

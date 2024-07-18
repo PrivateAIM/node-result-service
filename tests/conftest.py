@@ -7,7 +7,7 @@ import pytest
 from jwcrypto import jwk
 from starlette.testclient import TestClient
 
-from project.hub import FlamePasswordAuthClient, FlameHubClient
+from project.hub import FlamePasswordAuthClient, FlameCoreClient, FlameStorageClient
 from project.server import app
 from tests.common import env
 from tests.common.auth import get_oid_test_jwk
@@ -67,56 +67,61 @@ def auth_client():
 
 
 @pytest.fixture(scope="package")
-def api_client(auth_client):
-    return FlameHubClient(auth_client, base_url=env.hub_api_base_url())
+def core_client(auth_client):
+    return FlameCoreClient(auth_client, base_url=env.hub_core_base_url())
+
+
+@pytest.fixture(scope="package")
+def storage_client(auth_client):
+    return FlameStorageClient(auth_client, base_url=env.hub_storage_base_url())
 
 
 @pytest.fixture
-def project_id(api_client):
+def project_id(core_client):
     project_name = next_prefixed_name()
-    project = api_client.create_project(project_name)
+    project = core_client.create_project(project_name)
 
     # check that project was successfully created
     assert project.name == project_name
 
     # check that project can be retrieved
-    project_get = api_client.get_project_by_id(project.id)
+    project_get = core_client.get_project_by_id(project.id)
     assert project_get.id == project.id
 
     # check that project appears in list
-    project_get_list = api_client.get_project_list()
+    project_get_list = core_client.get_project_list()
     assert any([p.id == project.id for p in project_get_list.data])
 
     yield project.id
 
     # check that project can be deleted
-    api_client.delete_project(project.id)
+    core_client.delete_project(project.id)
 
     # check that project is no longer found
-    assert api_client.get_project_by_id(project.id) is None
+    assert core_client.get_project_by_id(project.id) is None
 
 
 @pytest.fixture
-def analysis_id(api_client, project_id):
+def analysis_id(core_client, project_id):
     analysis_name = next_prefixed_name()
-    analysis = api_client.create_analysis(analysis_name, project_id)
+    analysis = core_client.create_analysis(analysis_name, project_id)
 
     # check that analysis was created
     assert analysis.name == analysis_name
     assert analysis.project_id == project_id
 
     # check that GET on analysis works
-    analysis_get = api_client.get_analysis_by_id(analysis.id)
+    analysis_get = core_client.get_analysis_by_id(analysis.id)
     assert analysis_get.id == analysis.id
 
     # check that analysis appears in list
-    analysis_get_list = api_client.get_analysis_list()
+    analysis_get_list = core_client.get_analysis_list()
     assert any([a.id == analysis.id for a in analysis_get_list.data])
 
     yield analysis.id
 
     # check that DELETE analysis works
-    api_client.delete_analysis(analysis.id)
+    core_client.delete_analysis(analysis.id)
 
     # check that analysis is no longer found
-    assert api_client.get_analysis_by_id(analysis.id) is None
+    assert core_client.get_analysis_by_id(analysis.id) is None

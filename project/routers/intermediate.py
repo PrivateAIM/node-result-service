@@ -15,9 +15,10 @@ from project.dependencies import (
     get_settings,
     get_local_minio,
     get_client_id,
-    get_api_client,
+    get_core_client,
+    get_storage_client,
 )
-from project.hub import FlameHubClient
+from project.hub import FlameCoreClient, FlameStorageClient
 
 router = APIRouter()
 logger = logging.getLogger(__name__)
@@ -34,7 +35,8 @@ def __bg_upload_to_remote(
     minio: Minio,
     bucket_name: str,
     object_name: str,
-    api: FlameHubClient,
+    core_client: FlameCoreClient,
+    storage_client: FlameStorageClient,
     client_id: str,
     object_id: str,
 ):
@@ -48,9 +50,9 @@ def __bg_upload_to_remote(
         minio_resp = minio.get_object(bucket_name, object_name)
 
         # fetch analysis bucket
-        analysis_bucket = api.get_analysis_bucket(client_id, "TEMP")
+        analysis_bucket = core_client.get_analysis_bucket(client_id, "TEMP")
 
-        bucket_file_lst = api.upload_to_bucket(
+        bucket_file_lst = storage_client.upload_to_bucket(
             analysis_bucket.external_id,
             object_name,
             io.BytesIO(minio_resp.data),
@@ -59,7 +61,7 @@ def __bg_upload_to_remote(
 
         assert len(bucket_file_lst.data) == 1
         bucket_file = bucket_file_lst.data[0]
-        api.link_bucket_file_to_analysis(
+        core_client.link_bucket_file_to_analysis(
             analysis_bucket.id, bucket_file.id, bucket_file.name
         )
         object_id_to_hub_bucket_dict[object_id] = str(bucket_file.id)
@@ -83,7 +85,8 @@ async def submit_intermediate_result_to_hub(
     settings: Annotated[Settings, Depends(get_settings)],
     minio: Annotated[Minio, Depends(get_local_minio)],
     request: Request,
-    api_client: Annotated[FlameHubClient, Depends(get_api_client)],
+    core_client: Annotated[FlameCoreClient, Depends(get_core_client)],
+    storage_client: Annotated[FlameStorageClient, Depends(get_storage_client)],
     background_tasks: BackgroundTasks,
 ):
     """Upload a file as an intermediate result to the FLAME Hub.
@@ -107,7 +110,8 @@ async def submit_intermediate_result_to_hub(
         minio,
         settings.minio.bucket,
         object_name,
-        api_client,
+        core_client,
+        storage_client,
         client_id,
         object_id,
     )
@@ -132,7 +136,7 @@ async def submit_intermediate_result_to_hub(
 )
 async def retrieve_intermediate_result_from_hub(
     object_id: uuid.UUID,
-    api_client: Annotated[FlameHubClient, Depends(get_api_client)],
+    storage_client: Annotated[FlameStorageClient, Depends(get_storage_client)],
 ):
     """Get an intermediate result as file from the FLAME Hub."""
     object_id_str = str(object_id)
@@ -149,7 +153,7 @@ async def retrieve_intermediate_result_from_hub(
     bucket_file_id = object_id_to_hub_bucket_dict[object_id_str]
 
     async def _stream_bucket_file():
-        for b in api_client.stream_bucket_file(bucket_file_id):
+        for b in storage_client.stream_bucket_file(bucket_file_id):
             yield b
 
     return StreamingResponse(_stream_bucket_file())

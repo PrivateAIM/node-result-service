@@ -95,7 +95,7 @@ class FlamePasswordAuthClient:
         self,
         username: str,
         password: str,
-        base_url="https://auth.privateaim.net",
+        base_url="https://core.privateaim.net",
         token_expiration_leeway_seconds=60,
         force_acquire_on_init=False,
     ):
@@ -194,11 +194,11 @@ class FlamePasswordAuthClient:
         }
 
 
-class FlameHubClient:
+class FlameCoreClient:
     def __init__(
         self,
         auth_client: FlamePasswordAuthClient,
-        base_url="https://api.privateaim.net",
+        base_url="https://core.privateaim.net",
     ):
         """
         Create a new client to interact with the FLAME Hub API.
@@ -369,89 +369,6 @@ class FlameHubClient:
         r.raise_for_status()
         return Analysis(**r.json())
 
-    def get_bucket_list(self) -> ResourceList[Bucket]:
-        """
-        Get list of buckets.
-
-        Returns:
-            list of bucket resources
-        """
-        r = httpx.get(
-            self._format_url("/storage/buckets"),
-            headers=self.auth_client.get_auth_bearer_header(),
-        )
-
-        r.raise_for_status()
-        return ResourceList[Bucket](**r.json())
-
-    def get_bucket_by_id(self, bucket_id: str | UUID) -> Bucket | None:
-        """
-        Get a bucket by its ID.
-
-        Args:
-            bucket_id: ID of the bucket to get
-
-        Returns:
-            bucket resource, or *None* if no bucket was found
-        """
-        r = httpx.get(
-            self._format_url(f"/storage/buckets/{bucket_id}"),
-            headers=self.auth_client.get_auth_bearer_header(),
-        )
-
-        if r.status_code == status.HTTP_404_NOT_FOUND:
-            return None
-
-        r.raise_for_status()
-        return Bucket(**r.json())
-
-    def get_bucket_file_list(self) -> ResourceList[BucketFile]:
-        """
-        Get list of bucket files.
-
-        Returns:
-            list of bucket file resources
-        """
-        r = httpx.get(
-            self._format_url("/storage/bucket-files"),
-            headers=self.auth_client.get_auth_bearer_header(),
-        )
-
-        r.raise_for_status()
-        return ResourceList[BucketFile](**r.json())
-
-    def upload_to_bucket(
-        self,
-        bucket_id: str | UUID,
-        file_name: str,
-        file: bytes | BytesIO,
-        content_type: str = "application/octet-stream",
-    ) -> ResourceList[BucketFile]:
-        """
-        Upload a single file to a bucket.
-
-        Args:
-            bucket_id: ID of the bucket to upload the file to
-            file_name: file name
-            file: file contents
-            content_type: content type of the file (*application/octet-stream* by default)
-
-        Returns:
-            list of bucket file resources for the uploaded file
-        """
-        # wrap into BytesIO if raw bytes are passed in
-        if isinstance(file, bytes):
-            file = BytesIO(file)
-
-        r = httpx.post(
-            self._format_url(f"/storage/buckets/{bucket_id}/upload"),
-            headers=self.auth_client.get_auth_bearer_header(),
-            files={"file": (file_name, file, content_type)},
-        )
-
-        r.raise_for_status()
-        return ResourceList[BucketFile](**r.json())
-
     def get_analysis_bucket_file_list(self) -> ResourceList[AnalysisBucketFile]:
         """
         Get list of files that have been linked to an analysis.
@@ -531,6 +448,121 @@ class FlameHubClient:
         r.raise_for_status()
         return AnalysisBucketFile(**r.json())
 
+
+class FlameStorageClient:
+    def __init__(
+        self,
+        auth_client: FlamePasswordAuthClient,
+        base_url="https://storage.privateaim.net",
+    ):
+        """
+        Create a new client to interact with the FLAME Storage API.
+
+        Args:
+            auth_client: FLAME Auth API client to use
+            base_url: base API url
+        """
+        self.base_url = base_url
+        self.auth_client = auth_client
+
+        base_url_parts = urllib.parse.urlsplit(base_url)
+
+        self._base_scheme = base_url_parts[0]
+        self._base_netloc = base_url_parts[1]
+        self._base_path = base_url_parts[2]
+
+    def _format_url(self, path: str, query: dict[str, str] = None):
+        return build_url(
+            self._base_scheme,
+            self._base_netloc,
+            urllib.parse.urljoin(self._base_path, path),
+            query,
+            "",
+        )
+
+    def get_bucket_list(self) -> ResourceList[Bucket]:
+        """
+        Get list of buckets.
+
+        Returns:
+            list of bucket resources
+        """
+        r = httpx.get(
+            self._format_url("/buckets"),
+            headers=self.auth_client.get_auth_bearer_header(),
+        )
+
+        r.raise_for_status()
+        return ResourceList[Bucket](**r.json())
+
+    def get_bucket_by_id(self, bucket_id: str | UUID) -> Bucket | None:
+        """
+        Get a bucket by its ID.
+
+        Args:
+            bucket_id: ID of the bucket to get
+
+        Returns:
+            bucket resource, or *None* if no bucket was found
+        """
+        r = httpx.get(
+            self._format_url(f"/buckets/{bucket_id}"),
+            headers=self.auth_client.get_auth_bearer_header(),
+        )
+
+        if r.status_code == status.HTTP_404_NOT_FOUND:
+            return None
+
+        r.raise_for_status()
+        return Bucket(**r.json())
+
+    def get_bucket_file_list(self) -> ResourceList[BucketFile]:
+        """
+        Get list of bucket files.
+
+        Returns:
+            list of bucket file resources
+        """
+        r = httpx.get(
+            self._format_url("/bucket-files"),
+            headers=self.auth_client.get_auth_bearer_header(),
+        )
+
+        r.raise_for_status()
+        return ResourceList[BucketFile](**r.json())
+
+    def upload_to_bucket(
+        self,
+        bucket_id: str | UUID,
+        file_name: str,
+        file: bytes | BytesIO,
+        content_type: str = "application/octet-stream",
+    ) -> ResourceList[BucketFile]:
+        """
+        Upload a single file to a bucket.
+
+        Args:
+            bucket_id: ID of the bucket to upload the file to
+            file_name: file name
+            file: file contents
+            content_type: content type of the file (*application/octet-stream* by default)
+
+        Returns:
+            list of bucket file resources for the uploaded file
+        """
+        # wrap into BytesIO if raw bytes are passed in
+        if isinstance(file, bytes):
+            file = BytesIO(file)
+
+        r = httpx.post(
+            self._format_url(f"/buckets/{bucket_id}/upload"),
+            headers=self.auth_client.get_auth_bearer_header(),
+            files={"file": (file_name, file, content_type)},
+        )
+
+        r.raise_for_status()
+        return ResourceList[BucketFile](**r.json())
+
     def stream_bucket_file(self, bucket_file_id: str | UUID, chunk_size=1024):
         """
         Fetch the contents of a bucket file.
@@ -545,7 +577,7 @@ class FlameHubClient:
         """
         with httpx.stream(
             "GET",
-            self._format_url(f"/storage/bucket-files/{bucket_file_id}/stream"),
+            self._format_url(f"/bucket-files/{bucket_file_id}/stream"),
             headers=self.auth_client.get_auth_bearer_header(),
         ) as r:
             for b in r.iter_bytes(chunk_size=chunk_size):

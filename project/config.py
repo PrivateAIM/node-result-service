@@ -25,8 +25,9 @@ class OIDCConfig(BaseModel):
 
 
 class HubConfig(BaseModel):
-    api_base_url: HttpUrl = "https://api.privateaim.net"
+    core_base_url: HttpUrl = "https://core.privateaim.net"
     auth_base_url: HttpUrl = "https://auth.privateaim.net"
+    storage_base_url: HttpUrl = "https://storage.privateaim.net"
     auth_username: str
     auth_password: str
 

@@ -1,5 +1,8 @@
-from pydantic import BaseModel, HttpUrl, ConfigDict
+from enum import Enum
+
+from pydantic import BaseModel, HttpUrl, ConfigDict, model_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
+from typing_extensions import Self
 
 
 class MinioConnection(BaseModel):
@@ -24,14 +27,42 @@ class OIDCConfig(BaseModel):
     model_config = ConfigDict(frozen=True)
 
 
+class PasswordAuthConfig(BaseModel):
+    username: str
+    password: str
+
+
+class RobotAuthConfig(BaseModel):
+    id: str
+    secret: str
+
+
+class AuthMethod(str, Enum):
+    password = "password"
+    robot = "robot"
+
+
 class HubConfig(BaseModel):
     core_base_url: HttpUrl = "https://core.privateaim.net"
     auth_base_url: HttpUrl = "https://auth.privateaim.net"
     storage_base_url: HttpUrl = "https://storage.privateaim.net"
-    auth_username: str
-    auth_password: str
+
+    auth_method: AuthMethod
+
+    password_auth: PasswordAuthConfig | None = None
+    robot_auth: RobotAuthConfig | None = None
 
     model_config = ConfigDict(frozen=True)
+
+    @model_validator(mode="after")
+    def check_auth_credentials_provided(self) -> Self:
+        if self.auth_method == AuthMethod.password and self.password_auth is None:
+            raise ValueError("password auth specified but no credentials provided")
+
+        if self.auth_method == AuthMethod.robot and self.robot_auth is None:
+            raise ValueError("robot auth specified but no credentials provided")
+
+        return self
 
 
 class Settings(BaseSettings):

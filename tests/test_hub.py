@@ -8,15 +8,28 @@ from tests.common.helpers import next_prefixed_name, eventually, next_random_byt
 pytestmark = pytest.mark.live
 
 
-def test_auth_acquire_token(auth_client):
-    assert auth_client.get_access_token_object() is not None
+def test_password_auth_acquire_token(password_auth_client):
+    assert password_auth_client.get_auth_header() is not None
 
 
-def test_auth_no_reissue(auth_client):
-    at = auth_client.get_access_token_object()
-    at_new = auth_client.get_access_token_object()
+def test_password_auth_no_reissue(password_auth_client):
+    at = password_auth_client.get_auth_header()
+    at_new = password_auth_client.get_auth_header()
 
-    assert at.access_token == at_new.access_token
+    assert at is not None
+    assert at == at_new
+
+
+def test_robot_auth_acquire_token(robot_auth_client):
+    assert robot_auth_client.get_auth_header() is not None
+
+
+def test_robot_auth_no_reissue(robot_auth_client):
+    at = robot_auth_client.get_auth_header()
+    at_new = robot_auth_client.get_auth_header()
+
+    assert at is not None
+    assert at == at_new
 
 
 @pytest.fixture

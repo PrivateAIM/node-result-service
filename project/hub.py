@@ -20,7 +20,7 @@ class AccessToken(BaseModel):
     expires_in: int
     token_type: str
     scope: str
-    refresh_token: str
+    refresh_token: str | None = None
 
 
 class Project(BaseModel):
@@ -90,14 +90,103 @@ def _now():
     return int(time.time())
 
 
-class FlamePasswordAuthClient:
+class BaseAuthClient:
+    def __init__(
+        self, base_url="https://auth.privateaim.net", token_expiration_leeway_seconds=60
+    ):
+        self.base_url = base_url
+
+        base_url_parts = urllib.parse.urlsplit(base_url)
+
+        self._base_scheme = base_url_parts[0]
+        self._base_netloc = base_url_parts[1]
+        self._base_path = base_url_parts[2]
+
+        self._token_expiration_leeway_seconds = token_expiration_leeway_seconds
+
+        self.current_access_token = None
+        self.current_access_token_expires_at = 0
+
+    def format_url(self, path: str, query: dict[str, str] = None):
+        return build_url(
+            self._base_scheme,
+            self._base_netloc,
+            urllib.parse.urljoin(self._base_path, path),
+            query,
+            "",
+        )
+
+    def acquire_token(self):
+        raise NotImplementedError()
+
+    def format_auth_header(self):
+        raise NotImplementedError()
+
+    def get_auth_header(self):
+        if self.current_access_token is None:
+            self.acquire_token()
+        elif (
+            self.current_access_token_expires_at
+            < _now() + self._token_expiration_leeway_seconds
+        ):
+            self.acquire_token()
+
+        return self.format_auth_header()
+
+
+class FlameRobotAuthClient(BaseAuthClient):
+    def __init__(
+        self,
+        robot_id: str,
+        robot_secret: str,
+        base_url="https://auth.privateaim.net",
+        token_expiration_leeway_seconds=60,
+    ):
+        """
+        Create a new client to interact with the FLAME Auth API.
+        This client uses Authup's robot credentials flow to authenticate itself.
+
+        Args:
+            robot_id: robot ID
+            robot_secret: robot secret
+            base_url: base API url
+            token_expiration_leeway_seconds: amount of seconds before a token's set expiration timestamp to allow a
+                new token to be fetched in advance
+        """
+        super().__init__(base_url, token_expiration_leeway_seconds)
+
+        self._robot_id = robot_id
+        self._robot_secret = robot_secret
+
+    def acquire_token(self):
+        r = httpx.post(
+            self.format_url("/token"),
+            json={
+                "grant_type": "robot_credentials",
+                "id": self._robot_id,
+                "secret": self._robot_secret,
+            },
+        )
+
+        r.raise_for_status()
+        at = AccessToken(**r.json())
+
+        self.current_access_token = at
+        self.current_access_token_expires_at = _now() + at.expires_in
+
+    def format_auth_header(self):
+        return {
+            "Authorization": f"Bearer {self.current_access_token.access_token}",
+        }
+
+
+class FlamePasswordAuthClient(BaseAuthClient):
     def __init__(
         self,
         username: str,
         password: str,
         base_url="https://auth.privateaim.net",
         token_expiration_leeway_seconds=60,
-        force_acquire_on_init=False,
     ):
         """
         Create a new client to interact with the FLAME Auth API.
@@ -109,38 +198,15 @@ class FlamePasswordAuthClient:
             base_url: base API url
             token_expiration_leeway_seconds: amount of seconds before a token's set expiration timestamp to allow a
                 new token to be fetched in advance
-            force_acquire_on_init: *True* if a token should be fetched when this client is instantiated,
-                *False* otherwise
         """
-        self.base_url = base_url
-
-        base_url_parts = urllib.parse.urlsplit(base_url)
-
-        self._base_scheme = base_url_parts[0]
-        self._base_netloc = base_url_parts[1]
-        self._base_path = base_url_parts[2]
+        super().__init__(base_url, token_expiration_leeway_seconds)
 
         self._username = username
         self._password = password
-        self._token_expiration_leeway_seconds = token_expiration_leeway_seconds
-        self._current_access_token = None
-        self._current_access_token_expires_at = 0
 
-        if force_acquire_on_init:
-            self._acquire_token()
-
-    def _format_url(self, path: str, query: dict[str, str] = None):
-        return build_url(
-            self._base_scheme,
-            self._base_netloc,
-            urllib.parse.urljoin(self._base_path, path),
-            query,
-            "",
-        )
-
-    def _acquire_token(self):
+    def acquire_token(self):
         r = httpx.post(
-            self._format_url("/token"),
+            self.format_url("/token"),
             json={
                 "grant_type": "password",
                 "username": self._username,
@@ -151,53 +217,19 @@ class FlamePasswordAuthClient:
         r.raise_for_status()
         at = AccessToken(**r.json())
 
-        self._current_access_token = at
-        self._current_access_token_expires_at = _now() + at.expires_in
+        self.current_access_token = at
+        self.current_access_token_expires_at = _now() + at.expires_in
 
-    def get_access_token_object(self) -> AccessToken:
-        """
-        Get an active and valid access token object to authenticate with against the FLAME Hub API.
-        If no token has been fetched yet, or if the most recently fetched token is expired, a new one will be fetched.
-
-        Returns:
-            valid access token object
-        """
-        if self._current_access_token is None:
-            self._acquire_token()
-        elif (
-            self._current_access_token_expires_at
-            < _now() + self._token_expiration_leeway_seconds
-        ):
-            self._acquire_token()
-
-        return self._current_access_token
-
-    def get_access_token(self):
-        """
-        Get a valid access token code.
-
-        Returns:
-            access token code
-        """
-        return self.get_access_token_object().access_token
-
-    def get_auth_bearer_header(self):
-        """
-        Get a valid access token code and return it as an HTTP authorization header to be used in *httpx* and
-        *requests* headers.
-
-        Returns:
-            access token code wrapped in a dictionary for use with HTTP headers
-        """
+    def format_auth_header(self):
         return {
-            "Authorization": f"Bearer {self.get_access_token()}",
+            "Authorization": f"Bearer {self.current_access_token.access_token}",
         }
 
 
 class FlameCoreClient:
     def __init__(
         self,
-        auth_client: FlamePasswordAuthClient,
+        auth_client: BaseAuthClient,
         base_url="https://core.privateaim.net",
     ):
         """
@@ -237,7 +269,7 @@ class FlameCoreClient:
         """
         r = httpx.post(
             self._format_url("/projects"),
-            headers=self.auth_client.get_auth_bearer_header(),
+            headers=self.auth_client.get_auth_header(),
             json={
                 "name": name,
             },
@@ -255,7 +287,7 @@ class FlameCoreClient:
         """
         r = httpx.delete(
             self._format_url(f"/projects/{str(project_id)}"),
-            headers=self.auth_client.get_auth_bearer_header(),
+            headers=self.auth_client.get_auth_header(),
         )
 
         r.raise_for_status()
@@ -269,7 +301,7 @@ class FlameCoreClient:
         """
         r = httpx.get(
             self._format_url("/projects"),
-            headers=self.auth_client.get_auth_bearer_header(),
+            headers=self.auth_client.get_auth_header(),
         )
 
         r.raise_for_status()
@@ -287,7 +319,7 @@ class FlameCoreClient:
         """
         r = httpx.get(
             self._format_url(f"/projects/{str(project_id)}"),
-            headers=self.auth_client.get_auth_bearer_header(),
+            headers=self.auth_client.get_auth_header(),
         )
 
         if r.status_code == status.HTTP_404_NOT_FOUND:
@@ -309,7 +341,7 @@ class FlameCoreClient:
         """
         r = httpx.post(
             self._format_url("/analyses"),
-            headers=self.auth_client.get_auth_bearer_header(),
+            headers=self.auth_client.get_auth_header(),
             json={
                 "name": name,
                 "project_id": str(project_id),
@@ -328,7 +360,7 @@ class FlameCoreClient:
         """
         r = httpx.delete(
             self._format_url(f"/analyses/{str(analysis_id)}"),
-            headers=self.auth_client.get_auth_bearer_header(),
+            headers=self.auth_client.get_auth_header(),
         )
 
         r.raise_for_status()
@@ -342,7 +374,7 @@ class FlameCoreClient:
         """
         r = httpx.get(
             self._format_url("/analyses"),
-            headers=self.auth_client.get_auth_bearer_header(),
+            headers=self.auth_client.get_auth_header(),
         )
 
         r.raise_for_status()
@@ -360,7 +392,7 @@ class FlameCoreClient:
         """
         r = httpx.get(
             self._format_url(f"/analyses/{str(analysis_id)}"),
-            headers=self.auth_client.get_auth_bearer_header(),
+            headers=self.auth_client.get_auth_header(),
         )
 
         if r.status_code == status.HTTP_404_NOT_FOUND:
@@ -378,7 +410,7 @@ class FlameCoreClient:
         """
         r = httpx.get(
             self._format_url("/analysis-bucket-files"),
-            headers=self.auth_client.get_auth_bearer_header(),
+            headers=self.auth_client.get_auth_header(),
         )
 
         r.raise_for_status()
@@ -405,7 +437,7 @@ class FlameCoreClient:
                     "filter[type]": str(bucket_type),
                 },
             ),
-            headers=self.auth_client.get_auth_bearer_header(),
+            headers=self.auth_client.get_auth_header(),
         )
 
         r.raise_for_status()
@@ -436,7 +468,7 @@ class FlameCoreClient:
         """
         r = httpx.post(
             self._format_url("/analysis-bucket-files"),
-            headers=self.auth_client.get_auth_bearer_header(),
+            headers=self.auth_client.get_auth_header(),
             json={
                 "bucket_id": str(analysis_bucket_id),
                 "external_id": str(bucket_file_id),
@@ -452,7 +484,7 @@ class FlameCoreClient:
 class FlameStorageClient:
     def __init__(
         self,
-        auth_client: FlamePasswordAuthClient,
+        auth_client: BaseAuthClient,
         base_url="https://storage.privateaim.net",
     ):
         """
@@ -489,7 +521,7 @@ class FlameStorageClient:
         """
         r = httpx.get(
             self._format_url("/buckets"),
-            headers=self.auth_client.get_auth_bearer_header(),
+            headers=self.auth_client.get_auth_header(),
         )
 
         r.raise_for_status()
@@ -507,7 +539,7 @@ class FlameStorageClient:
         """
         r = httpx.get(
             self._format_url(f"/buckets/{bucket_id}"),
-            headers=self.auth_client.get_auth_bearer_header(),
+            headers=self.auth_client.get_auth_header(),
         )
 
         if r.status_code == status.HTTP_404_NOT_FOUND:
@@ -525,7 +557,7 @@ class FlameStorageClient:
         """
         r = httpx.get(
             self._format_url("/bucket-files"),
-            headers=self.auth_client.get_auth_bearer_header(),
+            headers=self.auth_client.get_auth_header(),
         )
 
         r.raise_for_status()
@@ -556,7 +588,7 @@ class FlameStorageClient:
 
         r = httpx.post(
             self._format_url(f"/buckets/{bucket_id}/upload"),
-            headers=self.auth_client.get_auth_bearer_header(),
+            headers=self.auth_client.get_auth_header(),
             files={"file": (file_name, file, content_type)},
         )
 
@@ -578,7 +610,7 @@ class FlameStorageClient:
         with httpx.stream(
             "GET",
             self._format_url(f"/bucket-files/{bucket_file_id}/stream"),
-            headers=self.auth_client.get_auth_bearer_header(),
+            headers=self.auth_client.get_auth_header(),
         ) as r:
             for b in r.iter_bytes(chunk_size=chunk_size):
                 yield b

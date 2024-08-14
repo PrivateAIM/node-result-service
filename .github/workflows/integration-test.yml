@@ -43,8 +43,9 @@ jobs:
           MINIO__SECRET_KEY: ${{env.MINIO_ROOT_PASSWORD}}
           MINIO__BUCKET: ${{env.MINIO_LOCAL_BUCKET_NAME}}
           MINIO__ENDPOINT: localhost:9000
-          HUB__AUTH_USERNAME: ${{secrets.HUB_AUTH_USERNAME}}
-          HUB__AUTH_PASSWORD: ${{secrets.HUB_AUTH_PASSWORD}}
+          HUB__AUTH_METHOD: robot
+          HUB__ROBOT_AUTH__ID: ${{secrets.HUB_ROBOT_ID}}
+          HUB__ROBOT_AUTH__SECRET: ${{secrets.HUB_ROBOT_SECRET}}
           # No tests against live infra are run here but these envs are set anyway to future-proof in case
           # we ever end up testing against live infra. python-dotenv will not override existing envs so the prod
           # URLs in the .env.example file shouldn't carry over here.

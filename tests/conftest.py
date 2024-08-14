@@ -7,7 +7,12 @@ import pytest
 from jwcrypto import jwk
 from starlette.testclient import TestClient
 
-from project.hub import FlamePasswordAuthClient, FlameCoreClient, FlameStorageClient
+from project.hub import (
+    FlamePasswordAuthClient,
+    FlameCoreClient,
+    FlameStorageClient,
+    FlameRobotAuthClient,
+)
 from project.server import app
 from tests.common import env
 from tests.common.auth import get_oid_test_jwk
@@ -57,23 +62,31 @@ def rng():
 
 
 @pytest.fixture(scope="package")
-def auth_client():
+def password_auth_client():
     return FlamePasswordAuthClient(
-        env.hub_auth_username(),
-        env.hub_auth_password(),
+        env.hub_password_auth_username(),
+        env.hub_password_auth_password(),
         base_url=env.hub_auth_base_url(),
-        force_acquire_on_init=True,
     )
 
 
 @pytest.fixture(scope="package")
-def core_client(auth_client):
-    return FlameCoreClient(auth_client, base_url=env.hub_core_base_url())
+def robot_auth_client():
+    return FlameRobotAuthClient(
+        env.hub_robot_auth_id(),
+        env.hub_robot_auth_secret(),
+        base_url=env.hub_auth_base_url(),
+    )
 
 
 @pytest.fixture(scope="package")
-def storage_client(auth_client):
-    return FlameStorageClient(auth_client, base_url=env.hub_storage_base_url())
+def core_client(password_auth_client):
+    return FlameCoreClient(password_auth_client, base_url=env.hub_core_base_url())
+
+
+@pytest.fixture(scope="package")
+def storage_client(password_auth_client):
+    return FlameStorageClient(password_auth_client, base_url=env.hub_storage_base_url())
 
 
 @pytest.fixture

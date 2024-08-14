@@ -11,8 +11,14 @@ from jwcrypto import jwk, jwt, common
 from minio import Minio
 from starlette import status
 
-from project.config import Settings, MinioBucketConfig
-from project.hub import FlamePasswordAuthClient, FlameCoreClient, FlameStorageClient
+from project.config import Settings, MinioBucketConfig, AuthMethod
+from project.hub import (
+    FlamePasswordAuthClient,
+    FlameCoreClient,
+    FlameStorageClient,
+    FlameRobotAuthClient,
+    BaseAuthClient,
+)
 
 security = HTTPBearer()
 logger = logging.getLogger(__name__)
@@ -111,16 +117,26 @@ def get_client_id(
 
 
 def get_auth_client(settings: Annotated[Settings, Depends(get_settings)]):
-    return FlamePasswordAuthClient(
-        settings.hub.auth_username,
-        settings.hub.auth_password,
-        base_url=str(settings.hub.auth_base_url),
-    )
+    if settings.hub.auth_method == AuthMethod.password:
+        return FlamePasswordAuthClient(
+            settings.hub.password_auth.username,
+            settings.hub.password_auth.password,
+            base_url=str(settings.hub.auth_base_url),
+        )
+
+    if settings.hub.auth_method == AuthMethod.robot:
+        return FlameRobotAuthClient(
+            settings.hub.robot_auth.id,
+            settings.hub.robot_auth.secret,
+            base_url=str(settings.hub.auth_base_url),
+        )
+
+    raise NotImplementedError(f"unknown auth method {settings.hub.auth_method}")
 
 
 def get_core_client(
     settings: Annotated[Settings, Depends(get_settings)],
-    auth_client: Annotated[FlamePasswordAuthClient, Depends(get_auth_client)],
+    auth_client: Annotated[BaseAuthClient, Depends(get_auth_client)],
 ):
     return FlameCoreClient(
         auth_client,
@@ -130,6 +146,6 @@ def get_core_client(
 
 def get_storage_client(
     settings: Annotated[Settings, Depends(get_settings)],
-    auth_client: Annotated[FlamePasswordAuthClient, Depends(get_auth_client)],
+    auth_client: Annotated[BaseAuthClient, Depends(get_auth_client)],
 ):
     return FlameStorageClient(auth_client, base_url=str(settings.hub.storage_base_url))

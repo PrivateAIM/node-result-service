@@ -25,8 +25,9 @@ Docker, [pull a recent image from the GitHub container registry](https://github.
 Pass in the configuration options using `-e` flags and forward port 8080 from your host to the container.
 
 ```
-$ docker run --rm -p 8080:8080 -e HUB__AUTH_USERNAME=admin \
-    -e HUB__AUTH_PASSWORD=super_secret \
+$ docker run --rm -p 8080:8080 -e HUB__ROBOT_AUTH__ID=beepboop \
+    -e HUB__ROBOT_AUTH__SECRET=super_secret \
+    -e HUB__AUTH_METHOD=robot \
     -e MINIO__ENDPOINT=localhost:9000 \
     -e MINIO__ACCESS_KEY=admin \
     -e MINIO__SECRET_KEY=super_secret \
@@ -40,21 +41,24 @@ $ docker run --rm -p 8080:8080 -e HUB__AUTH_USERNAME=admin \
 
 The following table shows all available configuration options.
 
-| **Environment variable**   | **Description**                                          | **Default**                    | **Required** |
-|----------------------------|----------------------------------------------------------|--------------------------------|:------------:|
-| HUB__CORE_BASE_URL         | Base URL for the FLAME Core API                          | https://core.privateaim.net    |              |
-| HUB__STORAGE_BASE_URL      | Base URL for the FLAME Storage API                       | https://storage.privateaim.net |              |
-| HUB__AUTH_BASE_URL         | Base URL for the FLAME Auth API                          | https://auth.privateaim.net    |              |
-| HUB__AUTH_USERNAME         | Username to use for obtaining access tokens              |                                |      x       |
-| HUB__AUTH_PASSWORD         | Password to use for obtaining access tokens              |                                |      x       |
-| MINIO__ENDPOINT            | MinIO S3 API endpoint (without scheme)                   |                                |      x       |
-| MINIO__ACCESS_KEY          | Access key for interacting with MinIO S3 API             |                                |      x       |
-| MINIO__SECRET_KEY          | Secret key for interacting with MinIO S3 API             |                                |      x       |
-| MINIO__BUCKET              | Name of S3 bucket to store result files in               |                                |      x       |
-| MINIO__REGION              | Region of S3 bucket to store result files in             | us-east-1                      |              |
-| MINIO__USE_SSL             | Flag for en-/disabling encrypted traffic to MinIO S3 API | 0                              |              |
-| OIDC__CERTS_URL            | URL to OIDC-complaint JWKS endpoint for validating JWTs  |                                |      x       |
-| OIDC__CLIENT_ID_CLAIM_NAME | JWT claim to identify authenticated requests with        | client_id                      |              |
+| **Environment variable**     | **Description**                                                                     | **Default**                    | **Required** |
+|------------------------------|-------------------------------------------------------------------------------------|--------------------------------|:------------:|
+| HUB__CORE_BASE_URL           | Base URL for the FLAME Core API                                                     | https://core.privateaim.net    |              |
+| HUB__STORAGE_BASE_URL        | Base URL for the FLAME Storage API                                                  | https://storage.privateaim.net |              |
+| HUB__AUTH_BASE_URL           | Base URL for the FLAME Auth API                                                     | https://auth.privateaim.net    |              |
+| HUB__AUTH_METHOD             | Authentication method to use for central FLAME services (`password` or `robot`)     |                                |      x       |
+| HUB__PASSWORD_AUTH__USERNAME | Username to use for obtaining access tokens using password auth scheme              |                                |              |
+| HUB__PASSWORD_AUTH__PASSWORD | Password to use for obtaining access tokens using password auth scheme              |                                |              |
+| HUB__ROBOT_AUTH__ID          | Robot ID to use for obtaining access tokens using robot credentials auth scheme     |                                |              |
+| HUB__ROBOT_AUTH__SECRET      | Robot secret to use for obtaining access tokens using robot credentials auth scheme |                                |              |
+| MINIO__ENDPOINT              | MinIO S3 API endpoint (without scheme)                                              |                                |      x       |
+| MINIO__ACCESS_KEY            | Access key for interacting with MinIO S3 API                                        |                                |      x       |
+| MINIO__SECRET_KEY            | Secret key for interacting with MinIO S3 API                                        |                                |      x       |
+| MINIO__BUCKET                | Name of S3 bucket to store result files in                                          |                                |      x       |
+| MINIO__REGION                | Region of S3 bucket to store result files in                                        | us-east-1                      |              |
+| MINIO__USE_SSL               | Flag for en-/disabling encrypted traffic to MinIO S3 API                            | 0                              |              |
+| OIDC__CERTS_URL              | URL to OIDC-complaint JWKS endpoint for validating JWTs                             |                                |      x       |
+| OIDC__CLIENT_ID_CLAIM_NAME   | JWT claim to identify authenticated requests with                                   | client_id                      |              |
 
 ## Note on running tests
 
@@ -72,7 +76,8 @@ Some tests need to be run against live infrastructure.
 Since a proper test instance is not available yet, these tests are hidden behind a flag and are not explicitly run in
 CI.
 To run these tests, append `-m live` to the command above.
-Make sure to configure `HUB__AUTH_USERNAME` and `HUB__AUTH_PASSWORD` in your `.env.test` file before running tests.
+Make sure to configure `HUB__ROBOT_AUTH__ID` and `HUB__ROBOT_AUTH__SECRET` in your `.env.test` file before running
+tests.
 
 # License
 

@@ -22,12 +22,20 @@ def hub_auth_base_url():
     return __get_env("HUB__AUTH_BASE_URL", "https://auth.privateaim.dev")
 
 
-def hub_auth_username():
-    return __get_env("HUB__AUTH_USERNAME")
+def hub_password_auth_username():
+    return __get_env("HUB__PASSWORD_AUTH__USERNAME")
 
 
-def hub_auth_password():
-    return __get_env("HUB__AUTH_PASSWORD")
+def hub_password_auth_password():
+    return __get_env("HUB__PASSWORD_AUTH__PASSWORD")
+
+
+def hub_robot_auth_id():
+    return __get_env("HUB__ROBOT_AUTH__ID")
+
+
+def hub_robot_auth_secret():
+    return __get_env("HUB__ROBOT_AUTH__SECRET")
 
 
 def oidc_certs_url():

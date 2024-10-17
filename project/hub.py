@@ -418,7 +418,7 @@ class FlameCoreClient:
 
     def get_analysis_bucket(
         self, analysis_id: str | UUID, bucket_type: BucketType
-    ) -> AnalysisBucket:
+    ) -> AnalysisBucket | None:
         """
         Get an analysis bucket by its ID and type.
 
@@ -427,7 +427,7 @@ class FlameCoreClient:
             bucket_type: type of the bucket
 
         Returns:
-            analysis bucket resource
+            analysis bucket resource, or *None* if no analysis bucket was found
         """
         r = httpx.get(
             self._format_url(
@@ -443,9 +443,16 @@ class FlameCoreClient:
         r.raise_for_status()
         lst = ResourceList[AnalysisBucket](**r.json())
 
-        assert len(lst.data) == 1
+        if len(lst.data) > 1:
+            raise ValueError(
+                f"expected no more than one analysis bucket with ID `{str(analysis_id)}` of "
+                f"type `{str(bucket_type)}, found {len(lst.data)}`"
+            )
 
-        return lst.data[0]
+        if len(lst.data) == 1:
+            return lst.data[0]
+
+        return None
 
     def link_bucket_file_to_analysis(
         self,
@@ -562,6 +569,27 @@ class FlameStorageClient:
 
         r.raise_for_status()
         return ResourceList[BucketFile](**r.json())
+
+    def get_bucket_file_by_id(self, bucket_file_id: str | UUID) -> BucketFile | None:
+        """
+        Get a bucket file by its ID.
+
+        Args:
+            bucket_file_id: ID of the bucket file to get
+
+        Returns:
+            bucket file resource, or *None* if no bucket file was found
+        """
+        r = httpx.get(
+            self._format_url(f"/bucket-files/{str(bucket_file_id)}"),
+            headers=self.auth_client.get_auth_header(),
+        )
+
+        if r.status_code == status.HTTP_404_NOT_FOUND:
+            return None
+
+        r.raise_for_status()
+        return BucketFile(**r.json())
 
     def upload_to_bucket(
         self,

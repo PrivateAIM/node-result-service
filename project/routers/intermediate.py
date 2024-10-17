@@ -1,19 +1,14 @@
-import io
 import logging
 import uuid
-from typing import Annotated, Optional
+from typing import Annotated
 
-from fastapi import APIRouter, UploadFile, Depends, HTTPException, BackgroundTasks
-from minio import Minio
+from fastapi import APIRouter, UploadFile, Depends, HTTPException
 from pydantic import BaseModel, HttpUrl
 from starlette import status
 from starlette.requests import Request
 from starlette.responses import StreamingResponse
 
-from project.config import Settings
 from project.dependencies import (
-    get_settings,
-    get_local_minio,
     get_client_id,
     get_core_client,
     get_storage_client,
@@ -23,58 +18,13 @@ from project.hub import FlameCoreClient, FlameStorageClient
 router = APIRouter()
 logger = logging.getLogger(__name__)
 
-# TODO fix this jank
-object_id_to_hub_bucket_dict: dict[str, Optional[str]] = {}
-
 
 class IntermediateUploadResponse(BaseModel):
     url: HttpUrl
 
 
-def __bg_upload_to_remote(
-    minio: Minio,
-    bucket_name: str,
-    object_name: str,
-    core_client: FlameCoreClient,
-    storage_client: FlameStorageClient,
-    client_id: str,
-    object_id: str,
-):
-    logger.info(
-        "__bg_upload_to_remote: bucket `%s`, object `%s`", bucket_name, object_name
-    )
-
-    minio_resp = None
-
-    try:
-        minio_resp = minio.get_object(bucket_name, object_name)
-
-        # fetch analysis bucket
-        analysis_bucket = core_client.get_analysis_bucket(client_id, "TEMP")
-
-        bucket_file_lst = storage_client.upload_to_bucket(
-            analysis_bucket.external_id,
-            object_name,
-            io.BytesIO(minio_resp.data),
-            minio_resp.headers.get("Content-Type", "application/octet-stream"),
-        )
-
-        assert len(bucket_file_lst.data) == 1
-        bucket_file = bucket_file_lst.data[0]
-        core_client.link_bucket_file_to_analysis(
-            analysis_bucket.id, bucket_file.id, bucket_file.name
-        )
-        object_id_to_hub_bucket_dict[object_id] = str(bucket_file.id)
-        minio.remove_object(bucket_name, object_name)
-    finally:
-        if minio is not None:
-            minio_resp.close()
-            minio_resp.release_conn()
-
-
 @router.put(
     "/",
-    status_code=status.HTTP_202_ACCEPTED,
     response_model=IntermediateUploadResponse,
     summary="Upload file as intermediate result to Hub",
     operation_id="putIntermediateResult",
@@ -82,45 +32,42 @@ def __bg_upload_to_remote(
 async def submit_intermediate_result_to_hub(
     client_id: Annotated[str, Depends(get_client_id)],
     file: UploadFile,
-    settings: Annotated[Settings, Depends(get_settings)],
-    minio: Annotated[Minio, Depends(get_local_minio)],
     request: Request,
     core_client: Annotated[FlameCoreClient, Depends(get_core_client)],
     storage_client: Annotated[FlameStorageClient, Depends(get_storage_client)],
-    background_tasks: BackgroundTasks,
 ):
     """Upload a file as an intermediate result to the FLAME Hub.
-    Returns a 202 on success.
-    This endpoint returns immediately and submits the file in the background."""
-    object_id = str(uuid.uuid4())
-    object_name = f"temp/{client_id}/{object_id}"
+    Returns a 200 on success.
+    This endpoint uploads the file and returns a link with which it can be retrieved."""
 
-    minio.put_object(
-        settings.minio.bucket,
-        object_name,
-        data=file.file,
-        length=file.size,
-        content_type=file.content_type or "application/octet-stream",
+    analysis_bucket = core_client.get_analysis_bucket(client_id, "TEMP")
+
+    bucket_file_lst = storage_client.upload_to_bucket(
+        analysis_bucket.external_id,
+        file.filename,
+        await file.read(),  # TODO should be chunked for large files
+        file.content_type or "application/octet-stream",
     )
 
-    object_id_to_hub_bucket_dict[object_id] = None
+    if len(bucket_file_lst.data) != 1:
+        raise HTTPException(
+            status_code=status.HTTP_502_BAD_GATEWAY,
+            detail=f"Expected single uploaded file to be returned by storage service, got {len(bucket_file_lst.data)}",
+        )
 
-    background_tasks.add_task(
-        __bg_upload_to_remote,
-        minio,
-        settings.minio.bucket,
-        object_name,
-        core_client,
-        storage_client,
-        client_id,
-        object_id,
+    # retrieve uploaded bucket file
+    bucket_file = bucket_file_lst.data[0]
+
+    # link bucket file to analysis
+    core_client.link_bucket_file_to_analysis(
+        analysis_bucket.id, bucket_file.id, bucket_file.name
     )
 
     return IntermediateUploadResponse(
         url=str(
             request.url_for(
                 "retrieve_intermediate_result_from_hub",
-                object_id=object_id,
+                object_id=bucket_file.id,
             )
         ),
     )
@@ -141,19 +88,14 @@ async def retrieve_intermediate_result_from_hub(
     """Get an intermediate result as file from the FLAME Hub."""
     object_id_str = str(object_id)
 
-    if (
-        object_id_str not in object_id_to_hub_bucket_dict
-        or object_id_to_hub_bucket_dict[object_id_str] is None
-    ):
+    if storage_client.get_bucket_file_by_id(object_id_str) is None:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
             detail=f"Object with ID {object_id} does not exist",
         )
 
-    bucket_file_id = object_id_to_hub_bucket_dict[object_id_str]
-
     async def _stream_bucket_file():
-        for b in storage_client.stream_bucket_file(bucket_file_id):
+        for b in storage_client.stream_bucket_file(object_id_str):
             yield b
 
     return StreamingResponse(_stream_bucket_file())

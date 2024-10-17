@@ -2,7 +2,7 @@ import pytest
 from starlette import status
 
 from tests.common.auth import issue_client_access_token, BearerAuth
-from tests.common.helpers import eventually, next_random_bytes
+from tests.common.helpers import next_random_bytes
 from tests.common.rest import wrap_bytes_for_request
 
 pytestmark = pytest.mark.live
@@ -20,8 +20,5 @@ def test_200_submit_to_upload(test_client, rng, core_client, analysis_id):
 
     assert r.status_code == status.HTTP_204_NO_CONTENT
 
-    def __check_analysis_file_count_increases():
-        analysis_file_count_new = len(core_client.get_analysis_bucket_file_list().data)
-        return analysis_file_count_new > analysis_file_count_old
-
-    assert eventually(__check_analysis_file_count_increases)
+    analysis_file_count_new = len(core_client.get_analysis_bucket_file_list().data)
+    assert analysis_file_count_new > analysis_file_count_old

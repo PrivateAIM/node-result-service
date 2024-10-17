@@ -5,13 +5,18 @@ from starlette import status
 
 from project.routers.intermediate import IntermediateUploadResponse
 from tests.common.auth import BearerAuth, issue_client_access_token
-from tests.common.helpers import next_random_bytes
+from tests.common.helpers import next_random_bytes, eventually
 from tests.common.rest import wrap_bytes_for_request, detail_of
 
 pytestmark = pytest.mark.live
 
 
-def test_200_submit_receive_intermediate(test_client, rng, analysis_id):
+def test_200_submit_receive_intermediate(test_client, rng, analysis_id, core_client):
+    def _check_temp_bucket_exists():
+        return core_client.get_analysis_bucket(analysis_id, "TEMP") is not None
+
+    assert eventually(_check_temp_bucket_exists)
+
     blob = next_random_bytes(rng)
     r = test_client.put(
         "/intermediate",
@@ -23,6 +28,7 @@ def test_200_submit_receive_intermediate(test_client, rng, analysis_id):
 
     # check that the response contains a path to a valid resource
     model = IntermediateUploadResponse(**r.json())
+    assert str(model.object_id) in str(model.url.path)
 
     r = test_client.get(
         model.url.path,

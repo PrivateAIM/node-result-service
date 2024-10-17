@@ -21,6 +21,7 @@ logger = logging.getLogger(__name__)
 
 class IntermediateUploadResponse(BaseModel):
     url: HttpUrl
+    object_id: uuid.UUID
 
 
 @router.put(
@@ -64,6 +65,7 @@ async def submit_intermediate_result_to_hub(
     )
 
     return IntermediateUploadResponse(
+        object_id=bucket_file.id,
         url=str(
             request.url_for(
                 "retrieve_intermediate_result_from_hub",

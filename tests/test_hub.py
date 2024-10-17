@@ -1,3 +1,5 @@
+from uuid import uuid4
+
 import pytest
 
 from project.hub import (
@@ -40,6 +42,10 @@ def result_bucket_id(analysis_id, core_client, storage_client):
     def _check_buckets_exist():
         for bucket_type in bucket_types:
             analysis_bucket = core_client.get_analysis_bucket(analysis_id, bucket_type)
+
+            if analysis_bucket is None:
+                return False
+
             bucket = storage_client.get_bucket_by_id(analysis_bucket.external_id)
 
             if bucket is None:
@@ -73,13 +79,21 @@ def uploaded_bucket_file(result_bucket_id, storage_client, rng):
     bucket_file_list = storage_client.get_bucket_file_list()
     assert any([bf.id == bucket_file.id for bf in bucket_file_list.data])
 
+    # check that bucket file can be accessed individually
+    assert storage_client.get_bucket_file_by_id(bucket_file.id) is not None
+
     yield file_blob, bucket_file
+
+
+def test_get_bucket_file_by_id_not_found(storage_client):
+    assert storage_client.get_bucket_file_by_id(uuid4()) is None
 
 
 def test_link_bucket_file_to_analysis(uploaded_bucket_file, analysis_id, core_client):
     _, bucket_file = uploaded_bucket_file
 
     analysis_bucket = core_client.get_analysis_bucket(analysis_id, "RESULT")
+    assert analysis_bucket is not None
 
     # check that the analysis file was created
     analysis_file = core_client.link_bucket_file_to_analysis(

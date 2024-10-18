@@ -36,7 +36,7 @@ async def submit_final_result_to_hub(
     bucket_file_lst = storage_client.upload_to_bucket(
         analysis_bucket.external_id,
         file.filename,
-        await file.read(),  # TODO should be chunked as well
+        file.file,
         file.content_type or "application/octet-stream",
     )
 

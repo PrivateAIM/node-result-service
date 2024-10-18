@@ -1,4 +1,5 @@
 import time
+import typing
 import urllib.parse
 from datetime import datetime
 from io import BytesIO
@@ -595,7 +596,7 @@ class FlameStorageClient:
         self,
         bucket_id: str | UUID,
         file_name: str,
-        file: bytes | BytesIO,
+        file: typing.IO[bytes],
         content_type: str = "application/octet-stream",
     ) -> ResourceList[BucketFile]:
         """

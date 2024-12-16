@@ -34,8 +34,6 @@ jobs:
         run: poetry install
       - name: Copy environment variables
         run: cp .env.example .env.test
-      - name: Create local bucket
-        run: poetry run flame-result migrate --no-verify "$MINIO_ROOT_USER" "$MINIO_ROOT_PASSWORD" "$MINIO_LOCAL_BUCKET_NAME"
       - name: Run tests
         run: poetry run pytest
         env:
@@ -57,10 +55,11 @@ jobs:
       minio:
         # not possible to use official minio image since it requires commands to start up
         # which gh doesn't support :(
-        image: bitnami/minio:2024.1.16
+        image: bitnami/minio:2024.12.13
         env:
           MINIO_ROOT_USER: ${{env.MINIO_ROOT_USER}}
           MINIO_ROOT_PASSWORD: ${{env.MINIO_ROOT_PASSWORD}}
+          MINIO_DEFAULT_BUCKETS: ${{env.MINIO_LOCAL_BUCKET_NAME}}
         ports:
           - 9000:9000
         options: >-

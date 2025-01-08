@@ -12,7 +12,10 @@ class BaseModel(pw.Model):
 
 class Tag(BaseModel):
     tag_name = pw.CharField(null=False)
-    project_id = pw.IntegerField(null=False)
+    project_id = pw.CharField(null=False)
+
+    class Meta:
+        indexes = ((("tag_name", "project_id"), True),)
 
 
 class Result(BaseModel):

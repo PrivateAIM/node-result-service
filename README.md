@@ -33,6 +33,10 @@ $ docker run --rm -p 8080:8080 -e HUB__ROBOT_AUTH__ID=beepboop \
     -e MINIO__SECRET_KEY=super_secret \
     -e MINIO__BUCKET=flame \
     -e MINIO__USE_SSL=false \
+    -e POSTGRES__HOST=localhost \
+    -e POSTGRES__USER=flame \
+    -e POSTGRES__PASSWORD=super_secret \
+    -e POSTGRES__DB=flame \
     -e OIDC__CERTS_URL="http://my.idp.org/realms/flame/protocol/openid-connect/certs" \
     ghcr.io/privateaim/node-result-service:sha-c1970cf
 ```
@@ -59,6 +63,11 @@ The following table shows all available configuration options.
 | MINIO__USE_SSL               | Flag for en-/disabling encrypted traffic to MinIO S3 API                            | 0                              |              |
 | OIDC__CERTS_URL              | URL to OIDC-complaint JWKS endpoint for validating JWTs                             |                                |      x       |
 | OIDC__CLIENT_ID_CLAIM_NAME   | JWT claim to identify authenticated requests with                                   | client_id                      |              |
+| POSTGRES__HOST               | Hostname of Postgres instance                                                       |                                |      x       |
+| POSTGRES__PORT               | Port of Postgres instance                                                           | 5432                           |              |
+| POSTGRES__USER               | Username for access to Postgres instance                                            |                                |      x       |
+| POSTGRES__PASSWORD           | Password for access to Postgres instance                                            |                                |      x       |
+| POSTGRES__DB                 | Database of Postgres instance                                                       |                                |      x       |
 
 ## Note on running tests
 
@@ -76,6 +85,7 @@ Some tests need to be run against live infrastructure.
 Since a proper test instance is not available yet, these tests are hidden behind a flag and are not explicitly run in
 CI.
 To run these tests, append `-m live` to the command above.
+To run **all** tests, append `-m "live or not live"`.
 Make sure to configure `HUB__ROBOT_AUTH__ID` and `HUB__ROBOT_AUTH__SECRET` in your `.env.test` file before running
 tests.
 

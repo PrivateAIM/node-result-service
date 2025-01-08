@@ -4,6 +4,7 @@ from functools import lru_cache
 from typing import Annotated
 
 import httpx
+import peewee as pw
 from fastapi import Depends, HTTPException
 from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
 from httpx import HTTPError
@@ -149,3 +150,17 @@ def get_storage_client(
     auth_client: Annotated[BaseAuthClient, Depends(get_auth_client)],
 ):
     return FlameStorageClient(auth_client, base_url=str(settings.hub.storage_base_url))
+
+
+def get_postgres_db(
+    settings: Annotated[Settings, Depends(get_settings)],
+):
+    pg = settings.postgres
+
+    return pw.PostgresqlDatabase(
+        pg.db,
+        user=pg.user,
+        password=pg.password,
+        host=pg.host,
+        port=pg.port,
+    )

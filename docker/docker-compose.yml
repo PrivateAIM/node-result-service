@@ -9,3 +9,11 @@ services:
     ports:
       - "9000:9000"  # s3 api
       - "9001:9001"  # web console
+
+  postgres:
+    image: postgres:17.2
+    shm_size: 128mb
+    env_file:
+      - .env
+    ports:
+      - "5432:5432"

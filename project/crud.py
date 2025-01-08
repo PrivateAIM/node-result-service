@@ -1,8 +1,7 @@
+from contextlib import contextmanager
+
 import peewee as pw
 import playhouse.shortcuts
-
-# defer initialization of database
-db = pw.PostgresqlDatabase(None)
 
 
 class BaseModel(pw.Model):
@@ -30,3 +29,11 @@ class Result(BaseModel):
 class TaggedResult(BaseModel):
     tag = pw.ForeignKeyField(Tag, null=False)
     result = pw.ForeignKeyField(Result, null=False)
+
+
+@contextmanager
+def bind_to(db: pw.Database):
+    with db.bind_ctx([Tag, Result, TaggedResult]):
+        # create tables if they do not exist yet
+        db.create_tables([Tag, Result, TaggedResult])
+        yield

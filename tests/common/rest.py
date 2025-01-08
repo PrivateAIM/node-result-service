@@ -8,6 +8,10 @@ def detail_of(r: Response) -> str:
     return r.json()["detail"]
 
 
-def wrap_bytes_for_request(b: bytes):
+def wrap_bytes_for_request(
+    b: bytes,
+    file_name: str = "upload.bin",
+    content_type: str = "application/octet-stream",
+):
     """Wrap a bytes object into a dictionary s.t. it can be passed into a httpx request."""
-    return {"file": io.BytesIO(b)}
+    return {"file": (file_name, io.BytesIO(b), content_type)}

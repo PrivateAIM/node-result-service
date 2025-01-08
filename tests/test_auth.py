@@ -13,6 +13,8 @@ endpoints = [
     ("GET", f"/local/{uuid.uuid4()}"),
     ("PUT", "/local"),
     ("PUT", "/final"),
+    ("GET", "/local/tags"),
+    ("GET", f"/local/tags/{uuid.uuid4()}"),
 ]
 
 

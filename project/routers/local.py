@@ -1,4 +1,5 @@
 import logging
+import re
 import uuid
 from typing import Annotated
 
@@ -22,6 +23,12 @@ from project.dependencies import (
 
 router = APIRouter()
 logger = logging.getLogger(__name__)
+
+_TAG_PATTERN = re.compile(r"[a-z0-9]{1,2}|[a-z0-9][a-z0-9-]{,30}[a-z0-9]")
+
+
+def is_valid_tag(tag: str) -> bool:
+    return _TAG_PATTERN.fullmatch(tag) is not None
 
 
 class LocalUploadResponse(BaseModel):
@@ -61,6 +68,13 @@ async def submit_intermediate_result_to_local(
     request: Request,
     tag: Annotated[str | None, Form()] = None,
 ):
+    if tag is not None:
+        if not is_valid_tag(tag):
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail=f"Invalid tag `{tag}`",
+            )
+
     object_id = uuid.uuid4()
     object_name = f"local/{client_id}/{object_id}"
 

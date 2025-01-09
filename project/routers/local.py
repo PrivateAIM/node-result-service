@@ -13,7 +13,6 @@ from starlette.responses import StreamingResponse
 
 from project import crud
 from project.config import Settings
-from project.crud import TaggedResult
 from project.dependencies import (
     get_client_id,
     get_settings,
@@ -98,7 +97,7 @@ async def submit_intermediate_result_to_local(
                 object_id=object_id,
                 filename=file.filename or "data.bin",
             )
-            TaggedResult.create(tag=tag, result=result)
+            crud.TaggedResult.create(tag=tag, result=result)
 
     return LocalUploadResponse(
         url=str(

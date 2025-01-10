@@ -8,7 +8,7 @@ packages = [{ include = "project" }]
 license = "Apache-2.0"
 
 [tool.poetry.scripts]
-flame-result = "project.main:cli"
+flame-result = "project.server:run_server"
 
 [tool.poetry.dependencies]
 python = ">=3.10,<4"
@@ -16,7 +16,6 @@ minio = "^7.2.14"
 fastapi = {extras = ["standard"], version = "^0.115.6"}
 pydantic-settings = "^2.7.1"
 python-multipart = "^0.0.20"
-click = "^8.1.8"
 jwcrypto = "^1.5.6"
 tomli = "^2.2.1"
 peewee = "^3.17.8"

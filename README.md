@@ -9,7 +9,7 @@ tokens it issues.
 For manual installation, you will need Python 3.10 or higher and [Poetry](https://python-poetry.org/) installed.
 Clone the repository and run `poetry install` in the root directory.
 Create a copy of `.env.example`, name it `.env` and configure to your needs.
-Finally, use the command line tool `flame-result` to start the service.
+Finally, use the command `flame-result` to start the service.
 
 ```
 $ git clone https://github.com/PrivateAIM/node-result-service.git
@@ -17,7 +17,7 @@ $ cd node-result-service
 $ poetry install
 $ cp .env.example .env
 $ poetry shell
-$ flame-result server
+$ flame-result
 ```
 
 Alternatively, if you're using

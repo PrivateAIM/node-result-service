@@ -18,7 +18,9 @@ from project.dependencies import (
     get_settings,
     get_local_minio,
     get_postgres_db,
+    get_core_client,
 )
+from project.hub import FlameCoreClient
 
 router = APIRouter()
 logger = logging.getLogger(__name__)
@@ -64,6 +66,7 @@ async def submit_intermediate_result_to_local(
     settings: Annotated[Settings, Depends(get_settings)],
     minio: Annotated[Minio, Depends(get_local_minio)],
     db: Annotated[pw.PostgresqlDatabase, Depends(get_postgres_db)],
+    core_client: Annotated[FlameCoreClient, Depends(get_core_client)],
     request: Request,
     tag: Annotated[str | None, Form()] = None,
 ):
@@ -71,7 +74,9 @@ async def submit_intermediate_result_to_local(
     Returns a 200 on success.
     This endpoint uploads the file and returns a link with which it can be retrieved.
     An optional tag can be supplied to group the file with other files."""
-    if tag is not None:
+    has_tag = tag is not None
+
+    if has_tag:
         if not is_valid_tag(tag):
             raise HTTPException(
                 status_code=status.HTTP_400_BAD_REQUEST,
@@ -89,10 +94,12 @@ async def submit_intermediate_result_to_local(
         content_type=file.content_type or "application/octet-stream",
     )
 
-    if tag is not None:
+    if has_tag:
+        # retrieve project id from analysis
+        project_id = str(core_client.get_analysis_by_id(client_id).project_id)
+
         with crud.bind_to(db):
-            # TODO change client_id to project_id using Hub API
-            tag, _ = crud.Tag.get_or_create(tag_name=tag, project_id=client_id)
+            tag, _ = crud.Tag.get_or_create(tag_name=tag, project_id=project_id)
             # TODO more elegant solution for filename being None?
             result = crud.Result.create(
                 client_id=client_id,
@@ -119,13 +126,16 @@ async def submit_intermediate_result_to_local(
 )
 async def get_project_tags(
     client_id: Annotated[str, Depends(get_client_id)],
+    core_client: Annotated[FlameCoreClient, Depends(get_core_client)],
     db: Annotated[pw.PostgresqlDatabase, Depends(get_postgres_db)],
     request: Request,
 ):
     """Get a list of tags assigned to the project for an analysis.
     Returns a 200 on success."""
+    project_id = str(core_client.get_analysis_by_id(client_id).project_id)
+
     with crud.bind_to(db):
-        db_tags = crud.Tag.select().where(crud.Tag.project_id == client_id)
+        db_tags = crud.Tag.select().where(crud.Tag.project_id == project_id)
 
     return LocalTagListResponse(
         tags=[
@@ -153,16 +163,21 @@ async def get_results_by_project_tag(
     tag_name: str,
     client_id: Annotated[str, Depends(get_client_id)],
     db: Annotated[pw.PostgresqlDatabase, Depends(get_postgres_db)],
+    core_client: Annotated[FlameCoreClient, Depends(get_core_client)],
     request: Request,
 ):
     """Get a list of files assigned to a tag.
     Returns a 200 on success."""
+    project_id = str(core_client.get_analysis_by_id(client_id).project_id)
+
     with crud.bind_to(db):
         db_tagged_results = (
             crud.Result.select()
             .join(crud.TaggedResult)
             .join(crud.Tag)
-            .where((crud.Tag.project_id == client_id) & (crud.Tag.tag_name == tag_name))
+            .where(
+                (crud.Tag.project_id == project_id) & (crud.Tag.tag_name == tag_name)
+            )
         )
 
     return LocalTaggedResultListResponse(

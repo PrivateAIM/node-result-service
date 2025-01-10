@@ -86,9 +86,7 @@ async def submit_intermediate_result_to_local(
     )
 
     if tag is not None:
-        with db.bind_ctx([crud.Tag, crud.Result, crud.TaggedResult]):
-            # create tables if they do not exist yet
-            db.create_tables([crud.Tag, crud.Result, crud.TaggedResult])
+        with crud.bind_to(db):
             # TODO change client_id to project_id using Hub API
             tag, _ = crud.Tag.get_or_create(tag_name=tag, project_id=client_id)
             # TODO more elegant solution for filename being None?

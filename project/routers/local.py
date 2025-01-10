@@ -67,6 +67,10 @@ async def submit_intermediate_result_to_local(
     request: Request,
     tag: Annotated[str | None, Form()] = None,
 ):
+    """Upload a file as a local result.
+    Returns a 200 on success.
+    This endpoint uploads the file and returns a link with which it can be retrieved.
+    An optional tag can be supplied to group the file with other files."""
     if tag is not None:
         if not is_valid_tag(tag):
             raise HTTPException(
@@ -118,6 +122,8 @@ async def get_project_tags(
     db: Annotated[pw.PostgresqlDatabase, Depends(get_postgres_db)],
     request: Request,
 ):
+    """Get a list of tags assigned to the project for an analysis.
+    Returns a 200 on success."""
     with crud.bind_to(db):
         db_tags = crud.Tag.select().where(crud.Tag.project_id == client_id)
 
@@ -149,6 +155,8 @@ async def get_results_by_project_tag(
     db: Annotated[pw.PostgresqlDatabase, Depends(get_postgres_db)],
     request: Request,
 ):
+    """Get a list of files assigned to a tag.
+    Returns a 200 on success."""
     with crud.bind_to(db):
         db_tagged_results = (
             crud.Result.select()
@@ -184,6 +192,7 @@ async def retrieve_intermediate_result_from_local(
     settings: Annotated[Settings, Depends(get_settings)],
     minio: Annotated[Minio, Depends(get_local_minio)],
 ):
+    """Geta local result as file."""
     try:
         response = minio.get_object(
             settings.minio.bucket,

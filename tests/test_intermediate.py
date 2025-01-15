@@ -50,3 +50,17 @@ def test_404_invalid_id(test_client):
 
     assert r.status_code == status.HTTP_404_NOT_FOUND
     assert detail_of(r) == f"Object with ID {rand_uuid} does not exist"
+
+
+def test_404_submit_invalid_id(test_client, rng):
+    rand_uuid = str(uuid.uuid4())
+    blob = next_random_bytes(rng)
+
+    r = test_client.put(
+        "/intermediate",
+        auth=BearerAuth(issue_client_access_token(rand_uuid)),
+        files=wrap_bytes_for_request(blob),
+    )
+
+    assert r.status_code == status.HTTP_404_NOT_FOUND
+    assert detail_of(r) == f"Temp bucket for analysis with ID {rand_uuid} was not found"

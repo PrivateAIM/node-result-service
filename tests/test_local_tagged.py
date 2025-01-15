@@ -13,7 +13,7 @@ from project.routers.local import (
 )
 from tests.common.auth import BearerAuth, issue_client_access_token
 from tests.common.helpers import next_random_bytes, eventually
-from tests.common.rest import wrap_bytes_for_request
+from tests.common.rest import wrap_bytes_for_request, detail_of
 
 pytestmark = pytest.mark.live
 
@@ -93,3 +93,43 @@ def test_200_create_tagged_upload(test_client, rng, analysis_id, core_client):
 
     assert tagged_result.url == result_url
     assert tagged_result.filename == filename
+
+
+def test_404_submit_tagged(test_client, rng):
+    rand_uuid = str(uuid.uuid4())
+    blob = next_random_bytes(rng)
+
+    r = test_client.put(
+        "/local",
+        auth=BearerAuth(issue_client_access_token(rand_uuid)),
+        files=wrap_bytes_for_request(blob),
+        data={"tag": "foobar"},
+    )
+
+    assert r.status_code == status.HTTP_404_NOT_FOUND
+    assert detail_of(r) == f"Analysis with ID {rand_uuid} not found"
+
+
+def test_404_get_tags(test_client):
+    rand_uuid = str(uuid.uuid4())
+
+    r = test_client.get(
+        "/local/tags",
+        auth=BearerAuth(issue_client_access_token(rand_uuid)),
+    )
+
+    assert r.status_code == status.HTTP_404_NOT_FOUND
+    assert detail_of(r) == f"Analysis with ID {rand_uuid} not found"
+
+
+def test_404_get_results_by_tag(test_client):
+    rand_uuid = str(uuid.uuid4())
+
+    r = test_client.get(
+        # tag doesn't really matter here bc analysis check happens before everything else
+        "/local/tags/foobar",
+        auth=BearerAuth(issue_client_access_token(rand_uuid)),
+    )
+
+    assert r.status_code == status.HTTP_404_NOT_FOUND
+    assert detail_of(r) == f"Analysis with ID {rand_uuid} not found"

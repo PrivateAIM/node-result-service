@@ -32,6 +32,12 @@ async def submit_final_result_to_hub(
     # fetch analysis bucket
     analysis_bucket = core_client.get_analysis_bucket(client_id, "RESULT")
 
+    if analysis_bucket is None:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail=f"Result bucket for analysis with ID {client_id} was not found",
+        )
+
     # upload to remote
     bucket_file_lst = storage_client.upload_to_bucket(
         analysis_bucket.external_id,
@@ -48,7 +54,6 @@ async def submit_final_result_to_hub(
 
     # fetch file s.t. it can be linked to result bucket
     bucket_file = bucket_file_lst.data[0]
-    analysis_bucket = core_client.get_analysis_bucket(client_id, "RESULT")
 
     # link file to analysis
     core_client.link_bucket_file_to_analysis(

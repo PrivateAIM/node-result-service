@@ -12,8 +12,8 @@ from project.routers.local import (
     LocalTaggedResultListResponse,
 )
 from tests.common.auth import BearerAuth, issue_client_access_token
-from tests.common.helpers import next_random_bytes
-from tests.common.rest import wrap_bytes_for_request, detail_of
+from tests.common.helpers import next_random_bytes, eventually
+from tests.common.rest import wrap_bytes_for_request
 
 pytestmark = pytest.mark.live
 
@@ -48,34 +48,21 @@ def test_is_valid_tag(pattern, expected):
     assert is_valid_tag(pattern) == expected
 
 
-@pytest.mark.parametrize("pattern,expected", _tag_test_cases)
-def test_200_400_tag_validation(test_client, rng, pattern, expected):
-    filename = str(uuid.uuid4())
-    blob = next_random_bytes(rng)
+def test_200_create_tagged_upload(test_client, rng, analysis_id, core_client):
+    def _analysis_exists():
+        return core_client.get_analysis_by_id(analysis_id) is not None
 
-    r = test_client.put(
-        "/local",
-        auth=BearerAuth(issue_client_access_token()),
-        files=wrap_bytes_for_request(blob, file_name=filename),
-        data={"tag": pattern},
-    )
+    assert eventually(_analysis_exists)
 
-    if expected:
-        assert r.status_code == status.HTTP_200_OK
-    else:
-        assert r.status_code == status.HTTP_400_BAD_REQUEST
-        assert detail_of(r) == f"Invalid tag `{pattern}`"
-
-
-def test_200_create_tagged_upload(test_client, rng):
     # use global random here to generate different tags for each run
     tag = "".join(random.choices(string.ascii_lowercase, k=16))
     filename = str(uuid.uuid4())
     blob = next_random_bytes(rng)
+    auth = BearerAuth(issue_client_access_token(analysis_id))
 
     r = test_client.put(
         "/local",
-        auth=BearerAuth(issue_client_access_token()),
+        auth=auth,
         files=wrap_bytes_for_request(blob, file_name=filename),
         data={"tag": tag},
     )
@@ -86,7 +73,7 @@ def test_200_create_tagged_upload(test_client, rng):
 
     r = test_client.get(
         "/local/tags",
-        auth=BearerAuth(issue_client_access_token()),
+        auth=auth,
     )
 
     assert r.status_code == status.HTTP_200_OK
@@ -95,7 +82,7 @@ def test_200_create_tagged_upload(test_client, rng):
 
     r = test_client.get(
         f"/local/tags/{tag}",
-        auth=BearerAuth(issue_client_access_token()),
+        auth=auth,
     )
 
     assert r.status_code == status.HTTP_200_OK

@@ -4,8 +4,8 @@ WORKDIR /tmp
 COPY ./pyproject.toml ./poetry.lock ./
 
 RUN set -ex && \
-        python -m pip install --disable-pip-version-check --no-cache-dir poetry==1.8.3 && \
-        poetry self add poetry-plugin-export && \
+        python -m pip install --disable-pip-version-check --no-cache-dir poetry==2.0.1 && \
+        poetry self add poetry-plugin-export==1.9.0 && \
         poetry export -n -f requirements.txt -o requirements.txt
 
 FROM python:3.12-alpine

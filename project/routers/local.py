@@ -54,6 +54,20 @@ class LocalTaggedResultListResponse(BaseModel):
     results: Annotated[list[LocalTaggedResult], Field(default_factory=list)]
 
 
+def _get_project_id_for_analysis_or_raise(
+    core_client: FlameCoreClient, analysis_id: str
+):
+    analysis = core_client.get_analysis_by_id(analysis_id)
+
+    if analysis is None:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail=f"Analysis with ID {analysis_id} not found",
+        )
+
+    return str(analysis.project_id)
+
+
 @router.put(
     "/",
     response_model=LocalUploadResponse,
@@ -96,7 +110,7 @@ async def submit_intermediate_result_to_local(
 
     if has_tag:
         # retrieve project id from analysis
-        project_id = str(core_client.get_analysis_by_id(client_id).project_id)
+        project_id = _get_project_id_for_analysis_or_raise(core_client, client_id)
 
         with crud.bind_to(db):
             tag, _ = crud.Tag.get_or_create(tag_name=tag, project_id=project_id)
@@ -132,7 +146,7 @@ async def get_project_tags(
 ):
     """Get a list of tags assigned to the project for an analysis.
     Returns a 200 on success."""
-    project_id = str(core_client.get_analysis_by_id(client_id).project_id)
+    project_id = _get_project_id_for_analysis_or_raise(core_client, client_id)
 
     with crud.bind_to(db):
         db_tags = crud.Tag.select().where(crud.Tag.project_id == project_id)
@@ -168,7 +182,7 @@ async def get_results_by_project_tag(
 ):
     """Get a list of files assigned to a tag.
     Returns a 200 on success."""
-    project_id = str(core_client.get_analysis_by_id(client_id).project_id)
+    project_id = _get_project_id_for_analysis_or_raise(core_client, client_id)
 
     with crud.bind_to(db):
         db_tagged_results = (

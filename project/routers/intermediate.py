@@ -43,6 +43,12 @@ async def submit_intermediate_result_to_hub(
 
     analysis_bucket = core_client.get_analysis_bucket(client_id, "TEMP")
 
+    if analysis_bucket is None:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail=f"Temp bucket for analysis with ID {client_id} was not found",
+        )
+
     bucket_file_lst = storage_client.upload_to_bucket(
         analysis_bucket.external_id,
         file.filename,

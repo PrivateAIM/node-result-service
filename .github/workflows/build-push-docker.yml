@@ -5,6 +5,11 @@ on:
     types: [ "closed" ]
     branches:
       - main
+  push:
+    branches:
+      - main
+    tags:
+      - "v*"
 
 env:
   REGISTRY: ghcr.io
@@ -12,7 +17,7 @@ env:
 
 jobs:
   build-and-push-image:
-    if: github.event.pull_request.merged
+    if: github.event_name == 'push' || github.event.pull_request.merged
     runs-on: ubuntu-latest
     permissions:
       contents: read
@@ -32,7 +37,9 @@ jobs:
         with:
           images: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}
           tags: |
+            type=semver,pattern={{version}}
             type=sha
+            type=raw,value={{date '[dev-]YYYYMMDD[T]HHmmss[Z]' tz='UTC'}}
       - name: Build and push Docker image
         uses: docker/build-push-action@v5
         with:

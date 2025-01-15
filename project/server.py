@@ -5,6 +5,7 @@ from contextlib import asynccontextmanager
 from pathlib import Path
 
 import tomli
+import uvicorn
 from fastapi import FastAPI
 
 from project.routers import final, intermediate, local
@@ -85,3 +86,11 @@ app.include_router(
     prefix="/local",
     tags=["local"],
 )
+
+
+def run_server():
+    uvicorn.run(app, host="0.0.0.0", port=8000)
+
+
+if __name__ == "__main__":
+    run_server()

@@ -2,7 +2,9 @@ import uuid
 
 from starlette import status
 
-from project.routers.local import LocalUploadResponse
+from project.routers.local import (
+    LocalUploadResponse,
+)
 from tests.common.auth import BearerAuth, issue_client_access_token
 from tests.common.helpers import next_random_bytes
 from tests.common.rest import wrap_bytes_for_request, detail_of

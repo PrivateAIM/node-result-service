@@ -65,10 +65,19 @@ class HubConfig(BaseModel):
         return self
 
 
+class PostgresConfig(BaseModel):
+    host: str
+    password: str
+    user: str
+    db: str
+    port: int = 5432
+
+
 class Settings(BaseSettings):
     hub: HubConfig
     minio: MinioBucketConfig
     oidc: OIDCConfig
+    postgres: PostgresConfig
 
     model_config = SettingsConfigDict(
         frozen=True,

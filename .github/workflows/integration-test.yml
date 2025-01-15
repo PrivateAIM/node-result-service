@@ -5,6 +5,9 @@ env:
   MINIO_ROOT_PASSWORD: s3cr3t_p4ssw0rd
   MINIO_LOCAL_BUCKET_NAME: flame
   MINIO_REMOTE_BUCKET_NAME: upload
+  POSTGRES_USER: flame
+  POSTGRES_PASSWORD: s3cr3t_p4ssw0rd
+  POSTGRES_DB: flame
   # Point these to the new dev instance of the FLAME Hub
   HUB_CORE_BASE_URL: https://core.privateaim.dev
   HUB_STORAGE_BASE_URL: https://storage.privateaim.dev
@@ -34,8 +37,6 @@ jobs:
         run: poetry install
       - name: Copy environment variables
         run: cp .env.example .env.test
-      - name: Create local bucket
-        run: poetry run flame-result migrate --no-verify "$MINIO_ROOT_USER" "$MINIO_ROOT_PASSWORD" "$MINIO_LOCAL_BUCKET_NAME"
       - name: Run tests
         run: poetry run pytest
         env:
@@ -46,6 +47,10 @@ jobs:
           HUB__AUTH_METHOD: robot
           HUB__ROBOT_AUTH__ID: ${{secrets.HUB_ROBOT_ID}}
           HUB__ROBOT_AUTH__SECRET: ${{secrets.HUB_ROBOT_SECRET}}
+          POSTGRES__HOST: localhost
+          POSTGRES__USER: ${{env.POSTGRES_USER}}
+          POSTGRES__PASSWORD: ${{env.POSTGRES_PASSWORD}}
+          POSTGRES__DB: ${{env.POSTGRES_DB}}
           # No tests against live infra are run here but these envs are set anyway to future-proof in case
           # we ever end up testing against live infra. python-dotenv will not override existing envs so the prod
           # URLs in the .env.example file shouldn't carry over here.
@@ -57,10 +62,11 @@ jobs:
       minio:
         # not possible to use official minio image since it requires commands to start up
         # which gh doesn't support :(
-        image: bitnami/minio:2024.1.16
+        image: bitnami/minio:2024.12.13
         env:
           MINIO_ROOT_USER: ${{env.MINIO_ROOT_USER}}
           MINIO_ROOT_PASSWORD: ${{env.MINIO_ROOT_PASSWORD}}
+          MINIO_DEFAULT_BUCKETS: ${{env.MINIO_LOCAL_BUCKET_NAME}}
         ports:
           - 9000:9000
         options: >-
@@ -68,3 +74,11 @@ jobs:
           --health-interval 2s
           --health-timeout 5s
           --health-retries 5
+
+      postgres:
+        image: postgres:17.2
+        env:
+          POSTGRES_USER: ${{env.POSTGRES_USER}}
+          POSTGRES_PASSWORD: ${{env.POSTGRES_PASSWORD}}
+        ports:
+          - 5432:5432

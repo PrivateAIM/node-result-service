@@ -51,6 +51,8 @@ jobs:
           POSTGRES__USER: ${{env.POSTGRES_USER}}
           POSTGRES__PASSWORD: ${{env.POSTGRES_PASSWORD}}
           POSTGRES__DB: ${{env.POSTGRES_DB}}
+          # Disable test containers.
+          PYTEST__USE_TESTCONTAINERS: 0
           # No tests against live infra are run here but these envs are set anyway to future-proof in case
           # we ever end up testing against live infra. python-dotenv will not override existing envs so the prod
           # URLs in the .env.example file shouldn't carry over here.

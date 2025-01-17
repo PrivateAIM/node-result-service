@@ -1,12 +1,17 @@
+import os
 import random
 import threading
 import urllib.parse
 from http.server import BaseHTTPRequestHandler, HTTPServer
 
+import peewee as pw
 import pytest
 from jwcrypto import jwk
 from starlette.testclient import TestClient
+from testcontainers.minio import MinioContainer
+from testcontainers.postgres import PostgresContainer
 
+from project.dependencies import get_postgres_db, get_local_minio
 from project.hub import (
     FlamePasswordAuthClient,
     FlameCoreClient,
@@ -20,7 +25,67 @@ from tests.common.helpers import next_prefixed_name
 
 
 @pytest.fixture(scope="package")
-def test_app():
+def use_testcontainers():
+    return os.environ.get("PYTEST__USE_TESTCONTAINERS", "0") == "1"
+
+
+@pytest.fixture(scope="package")
+def override_postgres(use_testcontainers):
+    if not use_testcontainers:
+        yield None
+    else:
+        with PostgresContainer(
+            "postgres:17.2",
+            username=os.environ.get("POSTGRES__USER"),
+            password=os.environ.get("POSTGRES__PASSWORD"),
+            dbname=os.environ.get("POSTGRES__DB"),
+            driver=None,
+        ) as postgres:
+            pg_url = urllib.parse.urlparse(postgres.get_connection_url())
+
+            def _override_get_postgres_db():
+                return pw.PostgresqlDatabase(
+                    pg_url.path.lstrip("/"),  # trim leading slash
+                    user=pg_url.username,
+                    password=pg_url.password,
+                    host=pg_url.hostname,
+                    port=pg_url.port,
+                )
+
+            yield _override_get_postgres_db
+
+
+@pytest.fixture(scope="package")
+def override_minio(use_testcontainers):
+    if not use_testcontainers:
+        yield None
+    else:
+        access_key = os.environ.get("MINIO__ACCESS_KEY")
+        secret_key = os.environ.get("MINIO__SECRET_KEY")
+        bucket = os.environ.get("MINIO__BUCKET")
+
+        with MinioContainer(
+            "minio/minio:RELEASE.2024-12-13T22-19-12Z",
+            access_key=access_key,
+            secret_key=secret_key,
+        ) as minio:
+            client = minio.get_client()
+            client.make_bucket(bucket)
+
+            def _override_get_local_minio():
+                return client
+
+            yield _override_get_local_minio
+
+
+@pytest.fixture(scope="package")
+def test_app(override_minio, override_postgres):
+    if callable(override_postgres):
+        app.dependency_overrides[get_postgres_db] = override_postgres
+
+    if callable(override_minio):
+        app.dependency_overrides[get_local_minio] = override_minio
+
     return app
 
 

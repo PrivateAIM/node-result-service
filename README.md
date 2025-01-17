@@ -20,6 +20,13 @@ $ poetry shell
 $ flame-result
 ```
 
+To run an ephemeral version of the Node Result Service with all services it needs pre-configured,
+simply run `docker compose up -d`.
+You can best explore the API by checking the documentation out at http://localhost:8080/docs.
+To acquire a JWT for use with the API, [use the corresponding script](./docker/keycloak/issue-jwt.sh).
+Be aware that, unless you test against your own Hub instance, the actual responses of this service will not be
+very helpful.
+
 Alternatively, if you're using
 Docker, [pull a recent image from the GitHub container registry](https://github.com/PrivateAIM/node-result-service/pkgs/container/node-result-service).
 Pass in the configuration options using `-e` flags and forward port 8080 from your host to the container.
@@ -38,7 +45,7 @@ $ docker run --rm -p 8080:8080 -e HUB__ROBOT_AUTH__ID=beepboop \
     -e POSTGRES__PASSWORD=super_secret \
     -e POSTGRES__DB=flame \
     -e OIDC__CERTS_URL="http://my.idp.org/realms/flame/protocol/openid-connect/certs" \
-    ghcr.io/privateaim/node-result-service:sha-c1970cf
+    ghcr.io/privateaim/node-result-service:dev-20250117T115251Z
 ```
 
 # Configuration

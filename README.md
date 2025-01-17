@@ -72,6 +72,14 @@ The following table shows all available configuration options.
 ## Note on running tests
 
 Set up tests by copying `.env.example` into a new file called `.env.test`.
+Add a line to the end of the copied file to enable the use of [testcontainers](https://testcontainers.com/).
+This will automatically start up and tear down containers used only for testing.
+
+```
+$ cp .env.example .env.test
+$ echo "PYTEST__USE_TESTCONTAINERS=1" >> .env.test
+```
+
 You can then execute tests by running `pytest`.
 Pre-existing environment variables take precedence and will not be overwritten by the contents of `.env.test`.
 

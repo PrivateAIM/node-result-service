@@ -3,6 +3,9 @@ import time
 import uuid
 from typing import Callable
 
+from cryptography.hazmat.primitives import serialization
+from cryptography.hazmat.primitives.asymmetric import ec
+
 from tests.common import env
 
 
@@ -45,3 +48,21 @@ def is_valid_uuid(val: str):
 def next_random_bytes(rng: random.Random, n: int = 16):
     """Return a bytes object with random content. (default length: 16)"""
     return rng.randbytes(n)
+
+
+def next_ecdh_keypair():
+    """Return a new ECDH keypair."""
+    private_key = ec.generate_private_key(curve=ec.SECP384R1())
+    public_key = private_key.public_key()
+
+    return (
+        private_key.private_bytes(
+            encoding=serialization.Encoding.PEM,
+            format=serialization.PrivateFormat.PKCS8,
+            encryption_algorithm=serialization.NoEncryption(),
+        ),
+        public_key.public_bytes(
+            encoding=serialization.Encoding.PEM,
+            format=serialization.PublicFormat.SubjectPublicKeyInfo,
+        ),
+    )

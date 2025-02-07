@@ -34,6 +34,15 @@ def test_robot_auth_no_reissue(robot_auth_client):
     assert at == at_new
 
 
+def test_get_node_list(core_client):
+    node_list = core_client.get_node_list()
+    assert len(node_list.data) != 0
+
+    first_node = node_list.data[0]
+    node = core_client.get_node_by_id(first_node.id)
+    assert first_node.id == node.id
+
+
 @pytest.fixture
 def result_bucket_id(analysis_id, core_client, storage_client):
     bucket_types: tuple[BucketType, ...] = ("CODE", "TEMP", "RESULT")

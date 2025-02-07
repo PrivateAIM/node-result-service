@@ -13,6 +13,7 @@ from starlette import status
 from project.common import build_url
 
 BucketType = Literal["CODE", "TEMP", "RESULT"]
+NodeType = Literal["aggregator", "default"]
 ResourceT = TypeVar("ResourceT")
 
 
@@ -28,6 +29,17 @@ class Project(BaseModel):
     id: UUID
     name: Optional[str]
     analyses: int
+    created_at: datetime
+    updated_at: datetime
+
+
+class Node(BaseModel):
+    id: UUID
+    external_name: Optional[str]
+    public_key: Optional[str]
+    name: str
+    type: NodeType
+    online: bool
     created_at: datetime
     updated_at: datetime
 
@@ -328,6 +340,42 @@ class FlameCoreClient:
 
         r.raise_for_status()
         return Project(**r.json())
+
+    def get_node_list(self) -> ResourceList[Node]:
+        """
+        Get a list of nodes.
+
+        Returns:
+            list of nodes
+        """
+        r = httpx.get(
+            self._format_url("/nodes"),
+            headers=self.auth_client.get_auth_header(),
+        )
+
+        r.raise_for_status()
+        return ResourceList[Node](**r.json())
+
+    def get_node_by_id(self, node_id: str | UUID) -> Node | None:
+        """
+        Get a node by its ID.
+
+        Args:
+            node_id: ID of the node to get
+
+        Returns:
+            node resource, or *None* if no node was found
+        """
+        r = httpx.get(
+            self._format_url(f"/nodes/{str(node_id)}"),
+            headers=self.auth_client.get_auth_header(),
+        )
+
+        if r.status_code == status.HTTP_404_NOT_FOUND:
+            return None
+
+        r.raise_for_status()
+        return Node(**r.json())
 
     def create_analysis(self, name: str, project_id: str | UUID) -> Analysis:
         """

@@ -90,6 +90,13 @@ class AnalysisBucketFile(BaseModel):
     analysis_id: Optional[UUID]
 
 
+class Realm(BaseModel):
+    id: UUID
+    name: str
+    created_at: datetime
+    updated_at: datetime
+
+
 class ResourceListMeta(BaseModel):
     total: int
 
@@ -145,6 +152,15 @@ class BaseAuthClient:
             self.acquire_token()
 
         return self.format_auth_header()
+
+    def get_realm_list(self) -> ResourceList[Realm]:
+        r = httpx.get(
+            self.format_url("/realms"),
+            headers=self.get_auth_header(),
+        )
+
+        r.raise_for_status()
+        return ResourceList[Realm](**r.json())
 
 
 class FlameRobotAuthClient(BaseAuthClient):
@@ -319,6 +335,56 @@ class FlameCoreClient:
 
         r.raise_for_status()
         return ResourceList[Project](**r.json())
+
+    def create_node(
+        self,
+        name: str,
+        realm_id: str | UUID,
+        node_type: NodeType,
+        external_name: Optional[str] = None,
+        registry_id: Optional[str | UUID] = None,
+        hidden: bool = False,
+    ):
+        r = httpx.post(
+            self._format_url("/nodes"),
+            headers=self.auth_client.get_auth_header(),
+            json={
+                "name": name,
+                "external_name": external_name,
+                "realm_id": str(realm_id),
+                "registry_id": str(registry_id) if registry_id is not None else None,
+                "hidden": hidden,
+                "type": node_type,
+            },
+        )
+
+        r.raise_for_status()
+        return Node(**r.json())
+
+    def delete_node(self, node_id: str | UUID):
+        r = httpx.delete(
+            self._format_url(f"/nodes/{str(node_id)}"),
+            headers=self.auth_client.get_auth_header(),
+        )
+
+        r.raise_for_status()
+
+    def update_public_key_for_node(
+        self, node_id: str | UUID, public_key: str | bytes
+    ) -> Node:
+        if isinstance(public_key, bytes):
+            public_key = public_key.decode("ascii")
+
+        r = httpx.post(
+            self._format_url(f"/nodes/{str(node_id)}"),
+            headers=self.auth_client.get_auth_header(),
+            json={
+                "public_key": public_key,
+            },
+        )
+
+        r.raise_for_status()
+        return Node(**r.json())
 
     def get_project_by_id(self, project_id: str | UUID) -> Project | None:
         """

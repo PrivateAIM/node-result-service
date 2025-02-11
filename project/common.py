@@ -1,5 +1,7 @@
 import urllib.parse
 
+from cryptography.hazmat.primitives.serialization import load_pem_public_key
+
 
 def build_url(
     scheme="", netloc="", path="", query: dict[str, str] | None = None, fragment=""
@@ -33,3 +35,8 @@ def build_url(
             fragment,
         ),
     )
+
+
+def hex_to_ecdh_public_key(hex_str: str):
+    pk_bytes = bytes.fromhex(hex_str)
+    return load_pem_public_key(pk_bytes)

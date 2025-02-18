@@ -12,6 +12,8 @@ from jwcrypto import jwk, jwt, common
 from minio import Minio
 from starlette import status
 
+from cryptography.hazmat.primitives import serialization
+
 from project.config import Settings, MinioBucketConfig, AuthMethod
 from project.hub import (
     FlamePasswordAuthClient,
@@ -164,3 +166,24 @@ def get_postgres_db(
         host=pg.host,
         port=pg.port,
     )
+
+
+def get_ecdh_keypair(settings: Annotated[Settings, Depends(get_settings)]):
+    crypto = settings.crypto
+
+    # settings enforce that either path or bytes are set
+
+    if crypto.ecdh_private_key_file is not None:
+        with (
+            crypto.ecdh_private_key_file.open(mode="rb") as private_key_f,
+            crypto.ecdh_public_key_file.open(mode="rb") as public_key_f,
+        ):
+            return (
+                serialization.load_pem_private_key(private_key_f.read(), password=None),
+                serialization.load_pem_public_key(public_key_f.read()),
+            )
+    else:
+        return (
+            serialization.load_pem_private_key(crypto.ecdh_private_key, password=None),
+            serialization.load_pem_public_key(crypto.ecdh_public_key),
+        )

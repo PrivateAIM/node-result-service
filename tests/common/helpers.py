@@ -51,9 +51,15 @@ def next_random_bytes(rng: random.Random, n: int = 16):
 
 
 def next_ecdh_keypair():
-    """Return a new ECDH keypair."""
     private_key = ec.generate_private_key(curve=ec.SECP384R1())
     public_key = private_key.public_key()
+
+    return private_key, public_key
+
+
+def next_ecdh_keypair_bytes():
+    """Return a new ECDH keypair."""
+    private_key, public_key = next_ecdh_keypair()
 
     return (
         private_key.private_bytes(

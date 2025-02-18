@@ -11,7 +11,7 @@ from starlette.testclient import TestClient
 from testcontainers.minio import MinioContainer
 from testcontainers.postgres import PostgresContainer
 
-from project.dependencies import get_postgres_db, get_local_minio
+from project.dependencies import get_postgres_db, get_local_minio, get_ecdh_keypair
 from project.hub import (
     FlamePasswordAuthClient,
     FlameCoreClient,
@@ -21,7 +21,10 @@ from project.hub import (
 from project.server import app
 from tests.common import env
 from tests.common.auth import get_oid_test_jwk
-from tests.common.helpers import next_prefixed_name
+from tests.common.helpers import (
+    next_prefixed_name,
+    next_ecdh_keypair,
+)
 
 
 @pytest.fixture(scope="package")
@@ -79,12 +82,23 @@ def override_minio(use_testcontainers):
 
 
 @pytest.fixture(scope="package")
-def test_app(override_minio, override_postgres):
+def override_ecdh_keypair():
+    private_key, public_key = next_ecdh_keypair()
+
+    def _override_get_ecdh_keypair():
+        return private_key, public_key
+
+
+# noinspection PyUnresolvedReferences
+@pytest.fixture(scope="package")
+def test_app(override_minio, override_postgres, override_ecdh_keypair):
     if callable(override_postgres):
         app.dependency_overrides[get_postgres_db] = override_postgres
 
     if callable(override_minio):
         app.dependency_overrides[get_local_minio] = override_minio
+
+    app.dependency_overrides[get_ecdh_keypair] = override_ecdh_keypair
 
     return app
 

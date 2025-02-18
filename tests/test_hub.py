@@ -10,7 +10,7 @@ from tests.common.helpers import (
     next_prefixed_name,
     eventually,
     next_random_bytes,
-    next_ecdh_keypair,
+    next_ecdh_keypair_bytes,
 )
 
 pytestmark = pytest.mark.live
@@ -73,7 +73,7 @@ def test_node_crud(core_client, realm_id):
     assert node == core_client.get_node_by_id(node.id)
 
     # test that updating the node with a keypair works
-    _, ec_public_key = next_ecdh_keypair()
+    _, ec_public_key = next_ecdh_keypair_bytes()
 
     core_client.update_public_key_for_node(node.id, ec_public_key)
     node_with_pk = core_client.get_node_by_id(node.id)

@@ -1,4 +1,5 @@
 from enum import Enum
+from pathlib import Path
 
 from pydantic import BaseModel, HttpUrl, ConfigDict, model_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
@@ -73,11 +74,39 @@ class PostgresConfig(BaseModel):
     port: int = 5432
 
 
+class CryptoConfig(BaseModel):
+    ecdh_private_key: bytes | None = None
+    ecdh_public_key: bytes | None = None
+    ecdh_private_key_file: Path | None = None
+    ecdh_public_key_file: Path | None = None
+
+    @model_validator(mode="after")
+    def check_bytes_or_file_provided(self) -> Self:
+        bytes_set = (
+            self.ecdh_private_key is not None and self.ecdh_public_key is not None
+        )
+        path_set = (
+            self.ecdh_private_key_file is not None
+            and self.ecdh_public_key_file is not None
+        )
+
+        if bytes_set and path_set:
+            raise ValueError(
+                "either path or static value must be set for ECDH keypair, not both"
+            )
+
+        if not bytes_set and not path_set:
+            raise ValueError(
+                "neither path nor static value is set for ECDH keypair, must set at least one"
+            )
+
+
 class Settings(BaseSettings):
     hub: HubConfig
     minio: MinioBucketConfig
     oidc: OIDCConfig
     postgres: PostgresConfig
+    crypto: CryptoConfig
 
     model_config = SettingsConfigDict(
         frozen=True,

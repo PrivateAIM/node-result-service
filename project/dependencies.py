@@ -174,7 +174,7 @@ def get_ecdh_private_key(settings: Annotated[Settings, Depends(get_settings)]):
 
     if settings.crypto.provider == CryptoProvider.file:
         return crypto.load_ecdh_private_key_from_path(
-            settings.crypto.ecdh_private_key_file
+            settings.crypto.ecdh_private_key_path
         )
 
     raise NotImplementedError(f"unknown crypto provider {settings.crypto.provider}")

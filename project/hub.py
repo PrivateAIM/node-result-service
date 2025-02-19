@@ -13,6 +13,7 @@ from starlette import status
 from project.common import build_url
 
 BucketType = Literal["CODE", "TEMP", "RESULT"]
+NodeType = Literal["aggregator", "default"]
 ResourceT = TypeVar("ResourceT")
 
 
@@ -28,6 +29,17 @@ class Project(BaseModel):
     id: UUID
     name: Optional[str]
     analyses: int
+    created_at: datetime
+    updated_at: datetime
+
+
+class Node(BaseModel):
+    id: UUID
+    external_name: Optional[str]
+    public_key: Optional[str]
+    name: str
+    type: NodeType
+    online: bool
     created_at: datetime
     updated_at: datetime
 
@@ -76,6 +88,13 @@ class AnalysisBucketFile(BaseModel):
     external_id: UUID  # external_id points to a BucketFile
     bucket_id: UUID
     analysis_id: Optional[UUID]
+
+
+class Realm(BaseModel):
+    id: UUID
+    name: str
+    created_at: datetime
+    updated_at: datetime
 
 
 class ResourceListMeta(BaseModel):
@@ -133,6 +152,15 @@ class BaseAuthClient:
             self.acquire_token()
 
         return self.format_auth_header()
+
+    def get_realm_list(self) -> ResourceList[Realm]:
+        r = httpx.get(
+            self.format_url("/realms"),
+            headers=self.get_auth_header(),
+        )
+
+        r.raise_for_status()
+        return ResourceList[Realm](**r.json())
 
 
 class FlameRobotAuthClient(BaseAuthClient):
@@ -308,6 +336,56 @@ class FlameCoreClient:
         r.raise_for_status()
         return ResourceList[Project](**r.json())
 
+    def create_node(
+        self,
+        name: str,
+        realm_id: str | UUID,
+        node_type: NodeType,
+        external_name: Optional[str] = None,
+        registry_id: Optional[str | UUID] = None,
+        hidden: bool = False,
+    ):
+        r = httpx.post(
+            self._format_url("/nodes"),
+            headers=self.auth_client.get_auth_header(),
+            json={
+                "name": name,
+                "external_name": external_name,
+                "realm_id": str(realm_id),
+                "registry_id": str(registry_id) if registry_id is not None else None,
+                "hidden": hidden,
+                "type": node_type,
+            },
+        )
+
+        r.raise_for_status()
+        return Node(**r.json())
+
+    def delete_node(self, node_id: str | UUID):
+        r = httpx.delete(
+            self._format_url(f"/nodes/{str(node_id)}"),
+            headers=self.auth_client.get_auth_header(),
+        )
+
+        r.raise_for_status()
+
+    def update_public_key_for_node(
+        self, node_id: str | UUID, public_key: str | bytes
+    ) -> Node:
+        if isinstance(public_key, bytes):
+            public_key = public_key.decode("ascii")
+
+        r = httpx.post(
+            self._format_url(f"/nodes/{str(node_id)}"),
+            headers=self.auth_client.get_auth_header(),
+            json={
+                "public_key": public_key,
+            },
+        )
+
+        r.raise_for_status()
+        return Node(**r.json())
+
     def get_project_by_id(self, project_id: str | UUID) -> Project | None:
         """
         Get a project by its ID.
@@ -328,6 +406,42 @@ class FlameCoreClient:
 
         r.raise_for_status()
         return Project(**r.json())
+
+    def get_node_list(self) -> ResourceList[Node]:
+        """
+        Get a list of nodes.
+
+        Returns:
+            list of nodes
+        """
+        r = httpx.get(
+            self._format_url("/nodes"),
+            headers=self.auth_client.get_auth_header(),
+        )
+
+        r.raise_for_status()
+        return ResourceList[Node](**r.json())
+
+    def get_node_by_id(self, node_id: str | UUID) -> Node | None:
+        """
+        Get a node by its ID.
+
+        Args:
+            node_id: ID of the node to get
+
+        Returns:
+            node resource, or *None* if no node was found
+        """
+        r = httpx.get(
+            self._format_url(f"/nodes/{str(node_id)}"),
+            headers=self.auth_client.get_auth_header(),
+        )
+
+        if r.status_code == status.HTTP_404_NOT_FOUND:
+            return None
+
+        r.raise_for_status()
+        return Node(**r.json())
 
     def create_analysis(self, name: str, project_id: str | UUID) -> Analysis:
         """

@@ -5,7 +5,12 @@ import pytest
 from project.hub import (
     BucketType,
 )
-from tests.common.helpers import next_prefixed_name, eventually, next_random_bytes
+from tests.common.helpers import (
+    next_prefixed_name,
+    eventually,
+    next_random_bytes,
+    next_ecdh_keypair_bytes,
+)
 
 pytestmark = pytest.mark.live
 
@@ -32,6 +37,47 @@ def test_robot_auth_no_reissue(robot_auth_client):
 
     assert at is not None
     assert at == at_new
+
+
+def test_node_crud(core_client, realm_id):
+    old_node_list = core_client.get_node_list()
+
+    # test creation
+    node = core_client.create_node(
+        name=next_prefixed_name(), realm_id=realm_id, node_type="default", hidden=True
+    )
+
+    new_node_list = core_client.get_node_list()
+
+    # test that node is present in list
+    assert not any(n.id == node.id for n in old_node_list.data)
+    assert any(n.id == node.id for n in new_node_list.data)
+
+    # test public key not present yet
+    assert node.public_key is None
+
+    # test that getting the node by id works
+    assert node == core_client.get_node_by_id(node.id)
+
+    # test that updating the node with a keypair works
+    _, ec_public_key = next_ecdh_keypair_bytes()
+
+    core_client.update_public_key_for_node(node.id, ec_public_key)
+    node_with_pk = core_client.get_node_by_id(node.id)
+
+    assert node_with_pk.public_key == ec_public_key.hex()
+
+    # test that deleting the node works
+    core_client.delete_node(node.id)
+
+
+def test_get_node_list(core_client):
+    node_list = core_client.get_node_list()
+    assert len(node_list.data) != 0
+
+    first_node = node_list.data[0]
+    node = core_client.get_node_by_id(first_node.id)
+    assert first_node.id == node.id
 
 
 @pytest.fixture

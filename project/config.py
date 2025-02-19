@@ -1,6 +1,8 @@
 from enum import Enum
+from pathlib import Path
+from typing import Literal, Annotated, Union
 
-from pydantic import BaseModel, HttpUrl, ConfigDict, model_validator
+from pydantic import BaseModel, HttpUrl, ConfigDict, model_validator, Field
 from pydantic_settings import BaseSettings, SettingsConfigDict
 from typing_extensions import Self
 
@@ -73,11 +75,31 @@ class PostgresConfig(BaseModel):
     port: int = 5432
 
 
+class CryptoProvider(str, Enum):
+    raw = "raw"
+    file = "file"
+
+
+class RawCryptoConfig(BaseModel):
+    provider: Literal[CryptoProvider.raw]
+    ecdh_private_key: bytes
+    ecdh_public_key: bytes
+
+
+class FileCryptoConfig(BaseModel):
+    provider: Literal[CryptoProvider.file]
+    ecdh_private_key_path: Path
+    ecdh_public_key_path: Path
+
+
 class Settings(BaseSettings):
     hub: HubConfig
     minio: MinioBucketConfig
     oidc: OIDCConfig
     postgres: PostgresConfig
+    crypto: Annotated[
+        Union[RawCryptoConfig, FileCryptoConfig], Field(discriminator="provider")
+    ]
 
     model_config = SettingsConfigDict(
         frozen=True,

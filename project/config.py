@@ -1,7 +1,8 @@
 from enum import Enum
 from pathlib import Path
+from typing import Literal, Annotated, Union
 
-from pydantic import BaseModel, HttpUrl, ConfigDict, model_validator
+from pydantic import BaseModel, HttpUrl, ConfigDict, model_validator, Field
 from pydantic_settings import BaseSettings, SettingsConfigDict
 from typing_extensions import Self
 
@@ -74,31 +75,21 @@ class PostgresConfig(BaseModel):
     port: int = 5432
 
 
-class CryptoConfig(BaseModel):
-    ecdh_private_key: bytes | None = None
-    ecdh_public_key: bytes | None = None
-    ecdh_private_key_file: Path | None = None
-    ecdh_public_key_file: Path | None = None
+class CryptoProvider(str, Enum):
+    raw = "raw"
+    file = "file"
 
-    @model_validator(mode="after")
-    def check_bytes_or_file_provided(self) -> Self:
-        bytes_set = (
-            self.ecdh_private_key is not None and self.ecdh_public_key is not None
-        )
-        path_set = (
-            self.ecdh_private_key_file is not None
-            and self.ecdh_public_key_file is not None
-        )
 
-        if bytes_set and path_set:
-            raise ValueError(
-                "either path or static value must be set for ECDH keypair, not both"
-            )
+class RawCryptoConfig(BaseModel):
+    provider: Literal[CryptoProvider.raw]
+    ecdh_private_key: bytes
+    ecdh_public_key: bytes
 
-        if not bytes_set and not path_set:
-            raise ValueError(
-                "neither path nor static value is set for ECDH keypair, must set at least one"
-            )
+
+class FileCryptoConfig(BaseModel):
+    provider: Literal[CryptoProvider.file]
+    ecdh_private_key_path: Path
+    ecdh_public_key_path: Path
 
 
 class Settings(BaseSettings):
@@ -106,7 +97,9 @@ class Settings(BaseSettings):
     minio: MinioBucketConfig
     oidc: OIDCConfig
     postgres: PostgresConfig
-    crypto: CryptoConfig
+    crypto: Annotated[
+        Union[RawCryptoConfig, FileCryptoConfig], Field(discriminator="provider")
+    ]
 
     model_config = SettingsConfigDict(
         frozen=True,

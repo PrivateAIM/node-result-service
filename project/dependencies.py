@@ -13,7 +13,7 @@ from minio import Minio
 from starlette import status
 
 from project import crypto
-from project.config import Settings, MinioBucketConfig, AuthMethod
+from project.config import Settings, MinioBucketConfig, AuthMethod, CryptoProvider
 from project.hub import (
     FlamePasswordAuthClient,
     FlameCoreClient,
@@ -169,15 +169,18 @@ def get_postgres_db(
 
 def get_ecdh_keypair(settings: Annotated[Settings, Depends(get_settings)]):
     # settings enforce that either path or bytes are set
-    if settings.crypto.ecdh_private_key_file is not None:
+    if settings.crypto.provider == CryptoProvider.raw:
+        return (
+            crypto.load_ecdh_private_key(settings.crypto.ecdh_private_key),
+            crypto.load_ecdh_public_key(settings.crypto.ecdh_public_key),
+        )
+
+    if settings.crypto.provider == CryptoProvider.file:
         return (
             crypto.load_ecdh_private_key_from_path(
                 settings.crypto.ecdh_private_key_file
             ),
             crypto.load_ecdh_public_key_from_path(settings.crypto.ecdh_public_key_file),
         )
-    else:
-        return (
-            crypto.load_ecdh_private_key(settings.crypto.ecdh_private_key),
-            crypto.load_ecdh_public_key(settings.crypto.ecdh_public_key),
-        )
+
+    raise ValueError(f"unknown crypto provider {settings.crypto.provider}")

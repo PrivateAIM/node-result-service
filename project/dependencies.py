@@ -13,7 +13,7 @@ from minio import Minio
 from starlette import status
 
 from project import crypto
-from project.config import Settings, MinioBucketConfig, AuthMethod, CryptoProvider
+from project.config import Settings, MinioBucketConfig, AuthFlow, CryptoProvider
 from project.hub import (
     FlamePasswordAuthClient,
     FlameCoreClient,
@@ -119,21 +119,21 @@ def get_client_id(
 
 
 def get_auth_client(settings: Annotated[Settings, Depends(get_settings)]):
-    if settings.hub.auth_method == AuthMethod.password:
+    if settings.hub.auth.flow == AuthFlow.password:
         return FlamePasswordAuthClient(
-            settings.hub.password_auth.username,
-            settings.hub.password_auth.password,
+            settings.hub.auth.username,
+            settings.hub.auth.password,
             base_url=str(settings.hub.auth_base_url),
         )
 
-    if settings.hub.auth_method == AuthMethod.robot:
+    if settings.hub.auth.flow == AuthFlow.robot:
         return FlameRobotAuthClient(
-            settings.hub.robot_auth.id,
-            settings.hub.robot_auth.secret,
+            settings.hub.auth.id,
+            settings.hub.auth.secret,
             base_url=str(settings.hub.auth_base_url),
         )
 
-    raise NotImplementedError(f"unknown auth method {settings.hub.auth_method}")
+    raise NotImplementedError(f"unknown auth flow {settings.hub.auth.flow}")
 
 
 def get_core_client(
@@ -183,4 +183,4 @@ def get_ecdh_keypair(settings: Annotated[Settings, Depends(get_settings)]):
             crypto.load_ecdh_public_key_from_path(settings.crypto.ecdh_public_key_file),
         )
 
-    raise ValueError(f"unknown crypto provider {settings.crypto.provider}")
+    raise NotImplementedError(f"unknown crypto provider {settings.crypto.provider}")

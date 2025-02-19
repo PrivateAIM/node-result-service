@@ -57,11 +57,11 @@ The following table shows all available configuration options.
 | HUB__CORE_BASE_URL            | Base URL for the FLAME Core API                                                     | https://core.privateaim.net    |                |
 | HUB__STORAGE_BASE_URL         | Base URL for the FLAME Storage API                                                  | https://storage.privateaim.net |                |
 | HUB__AUTH_BASE_URL            | Base URL for the FLAME Auth API                                                     | https://auth.privateaim.net    |                |
-| HUB__AUTH_METHOD              | Authentication method to use for central FLAME services (`password` or `robot`)     |                                |       x        |
-| HUB__PASSWORD_AUTH__USERNAME  | Username to use for obtaining access tokens using password auth scheme              |                                |                |
-| HUB__PASSWORD_AUTH__PASSWORD  | Password to use for obtaining access tokens using password auth scheme              |                                |                |
-| HUB__ROBOT_AUTH__ID           | Robot ID to use for obtaining access tokens using robot credentials auth scheme     |                                |                |
-| HUB__ROBOT_AUTH__SECRET       | Robot secret to use for obtaining access tokens using robot credentials auth scheme |                                |                |
+| HUB__AUTH__FLOW               | Authentication flow to use for central FLAME services (`password` or `robot`)       |                                |       x        |
+| HUB__AUTH__USERNAME           | Username to use for obtaining access tokens using password auth scheme              |                                | x<sup>1)</sup> |
+| HUB__AUTH__PASSWORD           | Password to use for obtaining access tokens using password auth scheme              |                                | x<sup>1)</sup> |
+| HUB__AUTH__ID                 | Robot ID to use for obtaining access tokens using robot credentials auth scheme     |                                | x<sup>2)</sup> |
+| HUB__AUTH__SECRET             | Robot secret to use for obtaining access tokens using robot credentials auth scheme |                                | x<sup>2)</sup> |
 | MINIO__ENDPOINT               | MinIO S3 API endpoint (without scheme)                                              |                                |       x        |
 | MINIO__ACCESS_KEY             | Access key for interacting with MinIO S3 API                                        |                                |       x        |
 | MINIO__SECRET_KEY             | Secret key for interacting with MinIO S3 API                                        |                                |       x        |
@@ -76,13 +76,15 @@ The following table shows all available configuration options.
 | POSTGRES__PASSWORD            | Password for access to Postgres instance                                            |                                |       x        |
 | POSTGRES__DB                  | Database of Postgres instance                                                       |                                |       x        |
 | CRYPTO__PROVIDER              | Provider for ECDH keypair (`raw` or `file`)                                         |                                |       x        |
-| CRYPTO__ECDH_PRIVATE_KEY      | Contents of ECDH private key file                                                   |                                | x<sup>1)</sup> |
-| CRYPTO__ECDH_PUBLIC_KEY       | Contents of ECDH public key file                                                    |                                | x<sup>1)</sup> |
-| CRYPTO__ECDH_PRIVATE_KEY_PATH | Path to ECDH private key file                                                       |                                | x<sup>2)</sup> |
-| CRYPTO__ECDH_PUBLIC_KEY_PATH  | Path to ECDH public key file                                                        |                                | x<sup>2)</sup> |
+| CRYPTO__ECDH_PRIVATE_KEY      | Contents of ECDH private key file                                                   |                                | x<sup>3)</sup> |
+| CRYPTO__ECDH_PUBLIC_KEY       | Contents of ECDH public key file                                                    |                                | x<sup>3)</sup> |
+| CRYPTO__ECDH_PRIVATE_KEY_PATH | Path to ECDH private key file                                                       |                                | x<sup>4)</sup> |
+| CRYPTO__ECDH_PUBLIC_KEY_PATH  | Path to ECDH public key file                                                        |                                | x<sup>4)</sup> |
 
-<sup>1)</sup> Only if `CRYPTO__PROVIDER` is set to `raw`
-<sup>2)</sup> Only if `CRYPTO__PROVIDER` is set to `file`
+<sup>1)</sup> Only if `HUB__AUTH__FLOW` is set to `password`
+<sup>2)</sup> Only if `HUB__AUTH__FLOW` is set to `robot`
+<sup>3)</sup> Only if `CRYPTO__PROVIDER` is set to `raw`
+<sup>4)</sup> Only if `CRYPTO__PROVIDER` is set to `file`
 
 ## Note on running tests
 
@@ -109,8 +111,10 @@ Since a proper test instance is not available yet, these tests are hidden behind
 CI.
 To run these tests, append `-m live` to the command above.
 To run **all** tests, append `-m "live or not live"`.
-Make sure to configure `HUB__ROBOT_AUTH__ID` and `HUB__ROBOT_AUTH__SECRET` in your `.env.test` file before running
-tests.
+
+The tests expect that robot **and** password credentials are provided in order to test both authentication flows.
+Set `HUB__AUTH__FLOW` to `robot`, but make sure to not only set `HUB__AUTH__ID` and `HUB__AUTH__SECRET`, but also
+`HUB__AUTH__USERNAME` and `HUB__AUTH__PASSWORD`.
 
 # License
 

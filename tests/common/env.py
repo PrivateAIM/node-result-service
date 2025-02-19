@@ -23,19 +23,19 @@ def hub_auth_base_url():
 
 
 def hub_password_auth_username():
-    return __get_env("HUB__PASSWORD_AUTH__USERNAME")
+    return __get_env("HUB__AUTH__USERNAME")
 
 
 def hub_password_auth_password():
-    return __get_env("HUB__PASSWORD_AUTH__PASSWORD")
+    return __get_env("HUB__AUTH__PASSWORD")
 
 
 def hub_robot_auth_id():
-    return __get_env("HUB__ROBOT_AUTH__ID")
+    return __get_env("HUB__AUTH__ID")
 
 
 def hub_robot_auth_secret():
-    return __get_env("HUB__ROBOT_AUTH__SECRET")
+    return __get_env("HUB__AUTH__SECRET")
 
 
 def oidc_certs_url():

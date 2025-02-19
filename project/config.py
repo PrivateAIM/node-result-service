@@ -2,9 +2,8 @@ from enum import Enum
 from pathlib import Path
 from typing import Literal, Annotated, Union
 
-from pydantic import BaseModel, HttpUrl, ConfigDict, model_validator, Field
+from pydantic import BaseModel, HttpUrl, ConfigDict, Field
 from pydantic_settings import BaseSettings, SettingsConfigDict
-from typing_extensions import Self
 
 
 class MinioConnection(BaseModel):
@@ -29,19 +28,21 @@ class OIDCConfig(BaseModel):
     model_config = ConfigDict(frozen=True)
 
 
+class AuthFlow(str, Enum):
+    password = "password"
+    robot = "robot"
+
+
 class PasswordAuthConfig(BaseModel):
+    flow: Literal[AuthFlow.password]
     username: str
     password: str
 
 
 class RobotAuthConfig(BaseModel):
+    flow: Literal[AuthFlow.robot]
     id: str
     secret: str
-
-
-class AuthMethod(str, Enum):
-    password = "password"
-    robot = "robot"
 
 
 class HubConfig(BaseModel):
@@ -49,22 +50,11 @@ class HubConfig(BaseModel):
     auth_base_url: HttpUrl = "https://auth.privateaim.net"
     storage_base_url: HttpUrl = "https://storage.privateaim.net"
 
-    auth_method: AuthMethod
-
-    password_auth: PasswordAuthConfig | None = None
-    robot_auth: RobotAuthConfig | None = None
+    auth: Annotated[
+        Union[RobotAuthConfig, PasswordAuthConfig], Field(discriminator="flow")
+    ]
 
     model_config = ConfigDict(frozen=True)
-
-    @model_validator(mode="after")
-    def check_auth_credentials_provided(self) -> Self:
-        if self.auth_method == AuthMethod.password and self.password_auth is None:
-            raise ValueError("password auth specified but no credentials provided")
-
-        if self.auth_method == AuthMethod.robot and self.robot_auth is None:
-            raise ValueError("robot auth specified but no credentials provided")
-
-        return self
 
 
 class PostgresConfig(BaseModel):

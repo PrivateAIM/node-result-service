@@ -38,9 +38,9 @@ services:
       - "HUB__CORE_BASE_URL=https://core.privateaim.dev"
       - "HUB__STORAGE_BASE_URL=https://storage.privateaim.dev"
       - "HUB__AUTH_BASE_URL=https://auth.privateaim.dev"
-      - "HUB__AUTH_METHOD=robot"
-      - "HUB__ROBOT_AUTH__ID=${HUB__ROBOT_AUTH__ID}"
-      - "HUB__ROBOT_AUTH__SECRET=${HUB__ROBOT_AUTH__SECRET}"
+      - "HUB__AUTH__FLOW=robot"
+      - "HUB__AUTH__ID=${HUB__AUTH__ID}"
+      - "HUB__AUTH__SECRET=${HUB__AUTH__SECRET}"
       - "MINIO__ENDPOINT=minio:9000"
       - "MINIO__ACCESS_KEY=${MINIO__ACCESS_KEY:-admin}"
       - "MINIO__SECRET_KEY=${MINIO__SECRET_KEY:-s3cr3t_p4ssw0rd}"
@@ -52,5 +52,9 @@ services:
       - "POSTGRES__DB=${POSTGRES__DB:-flame}"
       - "OIDC__CERTS_URL=http://keycloak:8080/realms/flame/protocol/openid-connect/certs"
       - "OIDC__CLIENT_ID_CLAIM_NAME=client_id"
+      - "CRYPTO__PROVIDER=file"
+      - "CRYPTO__ECDH_PRIVATE_KEY_PATH=/app/ecdh.pfx"
+    volumes:
+      - ./tests/assets/alice.pfx:/app/ecdh.pfx
     ports:
       - "8080:8080"

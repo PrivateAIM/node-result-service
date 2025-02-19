@@ -2,6 +2,7 @@ import logging
 import uuid
 from typing import Annotated
 
+from cryptography.hazmat.primitives.asymmetric import ec
 from fastapi import APIRouter, UploadFile, Depends, HTTPException, File, Form
 from pydantic import BaseModel, HttpUrl
 from starlette import status
@@ -9,12 +10,11 @@ from starlette.requests import Request
 from starlette.responses import StreamingResponse
 
 from project import crypto
-from project.crypto import EllipticCurveKeyPair
 from project.dependencies import (
     get_client_id,
     get_core_client,
     get_storage_client,
-    get_ecdh_keypair,
+    get_ecdh_private_key,
 )
 from project.hub import FlameCoreClient, FlameStorageClient
 
@@ -39,7 +39,7 @@ async def submit_intermediate_result_to_hub(
     request: Request,
     core_client: Annotated[FlameCoreClient, Depends(get_core_client)],
     storage_client: Annotated[FlameStorageClient, Depends(get_storage_client)],
-    ecdh_keypair: Annotated[EllipticCurveKeyPair, Depends(get_ecdh_keypair)],
+    private_key: Annotated[ec.EllipticCurvePrivateKey, Depends(get_ecdh_private_key)],
     remote_node_id: Annotated[str | None, Form()] = None,
 ):
     """Upload a file as an intermediate result to the FLAME Hub.
@@ -73,11 +73,10 @@ async def submit_intermediate_result_to_hub(
         remote_public_key = crypto.load_ecdh_public_key_from_hex_string(
             remote_node.public_key
         )
-        own_private_key, _ = ecdh_keypair
 
         # encrypt result file
         result_file = crypto.encrypt_default(
-            own_private_key, remote_public_key, result_file
+            private_key, remote_public_key, result_file
         )
 
     bucket_file_lst = storage_client.upload_to_bucket(

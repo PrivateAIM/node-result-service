@@ -75,15 +75,13 @@ The following table shows all available configuration options.
 | POSTGRES__USER                | Username for access to Postgres instance                                            |                                |       x        |
 | POSTGRES__PASSWORD            | Password for access to Postgres instance                                            |                                |       x        |
 | POSTGRES__DB                  | Database of Postgres instance                                                       |                                |       x        |
-| CRYPTO__PROVIDER              | Provider for ECDH keypair (`raw` or `file`)                                         |                                |       x        |
+| CRYPTO__PROVIDER              | Provider for ECDH private key (`raw` or `file`)                                     |                                |       x        |
 | CRYPTO__ECDH_PRIVATE_KEY      | Contents of ECDH private key file                                                   |                                | x<sup>3)</sup> |
-| CRYPTO__ECDH_PUBLIC_KEY       | Contents of ECDH public key file                                                    |                                | x<sup>3)</sup> |
 | CRYPTO__ECDH_PRIVATE_KEY_PATH | Path to ECDH private key file                                                       |                                | x<sup>4)</sup> |
-| CRYPTO__ECDH_PUBLIC_KEY_PATH  | Path to ECDH public key file                                                        |                                | x<sup>4)</sup> |
 
-<sup>1)</sup> Only if `HUB__AUTH__FLOW` is set to `password`
-<sup>2)</sup> Only if `HUB__AUTH__FLOW` is set to `robot`
-<sup>3)</sup> Only if `CRYPTO__PROVIDER` is set to `raw`
+<sup>1)</sup> Only if `HUB__AUTH__FLOW` is set to `password`  
+<sup>2)</sup> Only if `HUB__AUTH__FLOW` is set to `robot`  
+<sup>3)</sup> Only if `CRYPTO__PROVIDER` is set to `raw`  
 <sup>4)</sup> Only if `CRYPTO__PROVIDER` is set to `file`
 
 ## Note on running tests

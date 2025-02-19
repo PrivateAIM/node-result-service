@@ -73,13 +73,11 @@ class CryptoProvider(str, Enum):
 class RawCryptoConfig(BaseModel):
     provider: Literal[CryptoProvider.raw]
     ecdh_private_key: bytes
-    ecdh_public_key: bytes
 
 
 class FileCryptoConfig(BaseModel):
     provider: Literal[CryptoProvider.file]
     ecdh_private_key_path: Path
-    ecdh_public_key_path: Path
 
 
 class Settings(BaseSettings):

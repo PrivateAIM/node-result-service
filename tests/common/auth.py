@@ -1,6 +1,7 @@
 import os
 from datetime import timedelta, datetime, timezone
 from functools import lru_cache
+from pathlib import Path
 from typing import Any
 from uuid import UUID
 
@@ -8,6 +9,8 @@ import httpx
 from httpx import Request
 from jwcrypto import jwk, jwt
 
+from project import crypto
+from project.crypto import EllipticCurveKeyPair
 from tests.common import env
 
 
@@ -21,6 +24,20 @@ def get_oid_test_jwk() -> jwk.JWK:
         oid_jwk["use"] = "sig"
 
     return oid_jwk
+
+
+@lru_cache()
+def get_test_ecdh_keypair() -> EllipticCurveKeyPair:
+    asset_dir = os.path.join(os.path.dirname(__file__), "..", "assets")
+
+    return (
+        crypto.load_ecdh_private_key_from_path(
+            Path(os.path.join(asset_dir, "alice.pfx"))
+        ),
+        crypto.load_ecdh_public_key_from_path(
+            Path(os.path.join(asset_dir, "alice.pem"))
+        ),
+    )
 
 
 def issue_access_token(

@@ -2,16 +2,19 @@ import logging
 import uuid
 from typing import Annotated
 
-from fastapi import APIRouter, UploadFile, Depends, HTTPException
+from fastapi import APIRouter, UploadFile, Depends, HTTPException, File, Form
 from pydantic import BaseModel, HttpUrl
 from starlette import status
 from starlette.requests import Request
 from starlette.responses import StreamingResponse
 
+from project import crypto
+from project.crypto import EllipticCurveKeyPair
 from project.dependencies import (
     get_client_id,
     get_core_client,
     get_storage_client,
+    get_ecdh_keypair,
 )
 from project.hub import FlameCoreClient, FlameStorageClient
 
@@ -32,10 +35,12 @@ class IntermediateUploadResponse(BaseModel):
 )
 async def submit_intermediate_result_to_hub(
     client_id: Annotated[str, Depends(get_client_id)],
-    file: UploadFile,
+    file: Annotated[UploadFile, File()],
     request: Request,
     core_client: Annotated[FlameCoreClient, Depends(get_core_client)],
     storage_client: Annotated[FlameStorageClient, Depends(get_storage_client)],
+    ecdh_keypair: Annotated[EllipticCurveKeyPair, Depends(get_ecdh_keypair)],
+    remote_node_id: Annotated[str | None, Form()] = None,
 ):
     """Upload a file as an intermediate result to the FLAME Hub.
     Returns a 200 on success.
@@ -49,10 +54,36 @@ async def submit_intermediate_result_to_hub(
             detail=f"Temp bucket for analysis with ID {client_id} was not found",
         )
 
+    # TODO this should be chunked for large files, will be addressed in a later version
+    result_file = await file.read()
+
+    # encryption requested
+    if remote_node_id is not None:
+        # fetch remote node
+        remote_node = core_client.get_node_by_id(remote_node_id)
+
+        # check if it has a public key assigned to it
+        if remote_node.public_key is None:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail=f"Remote node with ID {remote_node_id} does not provide a public key",
+            )
+
+        # construct public key
+        remote_public_key = crypto.load_ecdh_public_key_from_hex_string(
+            remote_node.public_key
+        )
+        own_private_key, _ = ecdh_keypair
+
+        # encrypt result file
+        result_file = crypto.encrypt_default(
+            own_private_key, remote_public_key, result_file
+        )
+
     bucket_file_lst = storage_client.upload_to_bucket(
         analysis_bucket.external_id,
         file.filename,
-        file.file,
+        result_file,
         file.content_type or "application/octet-stream",
     )
 

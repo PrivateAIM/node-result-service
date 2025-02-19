@@ -20,10 +20,9 @@ from project.hub import (
 )
 from project.server import app
 from tests.common import env
-from tests.common.auth import get_oid_test_jwk
+from tests.common.auth import get_oid_test_jwk, get_test_ecdh_keypair
 from tests.common.helpers import (
     next_prefixed_name,
-    next_ecdh_keypair,
 )
 
 
@@ -83,10 +82,7 @@ def override_minio(use_testcontainers):
 
 @pytest.fixture(scope="package")
 def override_ecdh_keypair():
-    private_key, public_key = next_ecdh_keypair()
-
-    def _override_get_ecdh_keypair():
-        return private_key, public_key
+    yield get_test_ecdh_keypair
 
 
 # noinspection PyUnresolvedReferences
@@ -217,3 +213,15 @@ def analysis_id(core_client, project_id):
 
     # check that analysis is no longer found
     assert core_client.get_analysis_by_id(analysis.id) is None
+
+
+@pytest.fixture
+def realm_id(robot_auth_client):
+    preferred_realm_name = os.environ.get("PYTEST__PREFERRED_REALM_NAME", "master")
+    realm_list = robot_auth_client.get_realm_list()
+
+    for realm in realm_list.data:
+        if realm.name == preferred_realm_name:
+            return realm.id
+
+    raise ValueError(f"realm `{preferred_realm_name}` not found")

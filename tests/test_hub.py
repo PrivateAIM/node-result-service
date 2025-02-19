@@ -1,4 +1,3 @@
-import os
 from uuid import uuid4
 
 import pytest
@@ -38,18 +37,6 @@ def test_robot_auth_no_reissue(robot_auth_client):
 
     assert at is not None
     assert at == at_new
-
-
-@pytest.fixture
-def realm_id(robot_auth_client):
-    preferred_realm_name = os.environ.get("PYTEST__PREFERRED_REALM_NAME", "master")
-    realm_list = robot_auth_client.get_realm_list()
-
-    for realm in realm_list.data:
-        if realm.name == preferred_realm_name:
-            return realm.id
-
-    raise ValueError(f"realm `{preferred_realm_name}` not found")
 
 
 def test_node_crud(core_client, realm_id):

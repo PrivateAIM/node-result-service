@@ -52,29 +52,37 @@ $ docker run --rm -p 8080:8080 -e HUB__ROBOT_AUTH__ID=beepboop \
 
 The following table shows all available configuration options.
 
-| **Environment variable**     | **Description**                                                                     | **Default**                    | **Required** |
-|------------------------------|-------------------------------------------------------------------------------------|--------------------------------|:------------:|
-| HUB__CORE_BASE_URL           | Base URL for the FLAME Core API                                                     | https://core.privateaim.net    |              |
-| HUB__STORAGE_BASE_URL        | Base URL for the FLAME Storage API                                                  | https://storage.privateaim.net |              |
-| HUB__AUTH_BASE_URL           | Base URL for the FLAME Auth API                                                     | https://auth.privateaim.net    |              |
-| HUB__AUTH_METHOD             | Authentication method to use for central FLAME services (`password` or `robot`)     |                                |      x       |
-| HUB__PASSWORD_AUTH__USERNAME | Username to use for obtaining access tokens using password auth scheme              |                                |              |
-| HUB__PASSWORD_AUTH__PASSWORD | Password to use for obtaining access tokens using password auth scheme              |                                |              |
-| HUB__ROBOT_AUTH__ID          | Robot ID to use for obtaining access tokens using robot credentials auth scheme     |                                |              |
-| HUB__ROBOT_AUTH__SECRET      | Robot secret to use for obtaining access tokens using robot credentials auth scheme |                                |              |
-| MINIO__ENDPOINT              | MinIO S3 API endpoint (without scheme)                                              |                                |      x       |
-| MINIO__ACCESS_KEY            | Access key for interacting with MinIO S3 API                                        |                                |      x       |
-| MINIO__SECRET_KEY            | Secret key for interacting with MinIO S3 API                                        |                                |      x       |
-| MINIO__BUCKET                | Name of S3 bucket to store result files in                                          |                                |      x       |
-| MINIO__REGION                | Region of S3 bucket to store result files in                                        | us-east-1                      |              |
-| MINIO__USE_SSL               | Flag for en-/disabling encrypted traffic to MinIO S3 API                            | 0                              |              |
-| OIDC__CERTS_URL              | URL to OIDC-complaint JWKS endpoint for validating JWTs                             |                                |      x       |
-| OIDC__CLIENT_ID_CLAIM_NAME   | JWT claim to identify authenticated requests with                                   | client_id                      |              |
-| POSTGRES__HOST               | Hostname of Postgres instance                                                       |                                |      x       |
-| POSTGRES__PORT               | Port of Postgres instance                                                           | 5432                           |              |
-| POSTGRES__USER               | Username for access to Postgres instance                                            |                                |      x       |
-| POSTGRES__PASSWORD           | Password for access to Postgres instance                                            |                                |      x       |
-| POSTGRES__DB                 | Database of Postgres instance                                                       |                                |      x       |
+| **Environment variable**      | **Description**                                                                     | **Default**                    |  **Required**  |
+|-------------------------------|-------------------------------------------------------------------------------------|--------------------------------|:--------------:|
+| HUB__CORE_BASE_URL            | Base URL for the FLAME Core API                                                     | https://core.privateaim.net    |                |
+| HUB__STORAGE_BASE_URL         | Base URL for the FLAME Storage API                                                  | https://storage.privateaim.net |                |
+| HUB__AUTH_BASE_URL            | Base URL for the FLAME Auth API                                                     | https://auth.privateaim.net    |                |
+| HUB__AUTH_METHOD              | Authentication method to use for central FLAME services (`password` or `robot`)     |                                |       x        |
+| HUB__PASSWORD_AUTH__USERNAME  | Username to use for obtaining access tokens using password auth scheme              |                                |                |
+| HUB__PASSWORD_AUTH__PASSWORD  | Password to use for obtaining access tokens using password auth scheme              |                                |                |
+| HUB__ROBOT_AUTH__ID           | Robot ID to use for obtaining access tokens using robot credentials auth scheme     |                                |                |
+| HUB__ROBOT_AUTH__SECRET       | Robot secret to use for obtaining access tokens using robot credentials auth scheme |                                |                |
+| MINIO__ENDPOINT               | MinIO S3 API endpoint (without scheme)                                              |                                |       x        |
+| MINIO__ACCESS_KEY             | Access key for interacting with MinIO S3 API                                        |                                |       x        |
+| MINIO__SECRET_KEY             | Secret key for interacting with MinIO S3 API                                        |                                |       x        |
+| MINIO__BUCKET                 | Name of S3 bucket to store result files in                                          |                                |       x        |
+| MINIO__REGION                 | Region of S3 bucket to store result files in                                        | us-east-1                      |                |
+| MINIO__USE_SSL                | Flag for en-/disabling encrypted traffic to MinIO S3 API                            | 0                              |                |
+| OIDC__CERTS_URL               | URL to OIDC-complaint JWKS endpoint for validating JWTs                             |                                |       x        |
+| OIDC__CLIENT_ID_CLAIM_NAME    | JWT claim to identify authenticated requests with                                   | client_id                      |                |
+| POSTGRES__HOST                | Hostname of Postgres instance                                                       |                                |       x        |
+| POSTGRES__PORT                | Port of Postgres instance                                                           | 5432                           |                |
+| POSTGRES__USER                | Username for access to Postgres instance                                            |                                |       x        |
+| POSTGRES__PASSWORD            | Password for access to Postgres instance                                            |                                |       x        |
+| POSTGRES__DB                  | Database of Postgres instance                                                       |                                |       x        |
+| CRYPTO__PROVIDER              | Provider for ECDH keypair (`raw` or `file`)                                         |                                |       x        |
+| CRYPTO__ECDH_PRIVATE_KEY      | Contents of ECDH private key file                                                   |                                | x<sup>1)</sup> |
+| CRYPTO__ECDH_PUBLIC_KEY       | Contents of ECDH public key file                                                    |                                | x<sup>1)</sup> |
+| CRYPTO__ECDH_PRIVATE_KEY_PATH | Path to ECDH private key file                                                       |                                | x<sup>2)</sup> |
+| CRYPTO__ECDH_PUBLIC_KEY_PATH  | Path to ECDH public key file                                                        |                                | x<sup>2)</sup> |
+
+<sup>1)</sup> Only if `CRYPTO__PROVIDER` is set to `raw`
+<sup>2)</sup> Only if `CRYPTO__PROVIDER` is set to `file`
 
 ## Note on running tests
 

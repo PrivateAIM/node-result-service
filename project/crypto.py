@@ -1,13 +1,12 @@
 import os
 from pathlib import Path
 
-from cryptography.hazmat.primitives.asymmetric import ec
 from cryptography.hazmat.primitives import serialization
+from cryptography.hazmat.primitives.asymmetric import ec
 from cryptography.hazmat.primitives.ciphers import aead
 
-
 BITS_PER_BYTE = 8
-DEFAULT_IV_BIT_SIZE = 128
+DEFAULT_IV_BIT_SIZE = 96
 DEFAULT_SHARED_SECRET_BIT_SIZE = 256
 
 EllipticCurveKeyPair = tuple[ec.EllipticCurvePrivateKey, ec.EllipticCurvePublicKey]
@@ -42,9 +41,9 @@ def load_ecdh_public_key_from_hex_string(hex_str: str):
     return load_ecdh_public_key(bytes.fromhex(hex_str))
 
 
-def random_iv(bit_size: int = DEFAULT_IV_BIT_SIZE):
-    """Generate a random initialization vector using `random.urandom`."""
-    return os.urandom(bit_size // BITS_PER_BYTE)
+def random_iv():
+    """Generate a random 12-byte initialization vector using `random.urandom`."""
+    return os.urandom(DEFAULT_IV_BIT_SIZE // BITS_PER_BYTE)
 
 
 def exchange_ecdh_shared_secret(
@@ -91,7 +90,7 @@ def encrypt_default(
 ):
     """Encrypt data using AESGCM with the sender's private key and the recipient's public key.
     This function uses all defaults in this module for convenience.
-    The generated 16-byte IV is prepended to the ciphertext.
+    The generated 12-byte IV is prepended to the ciphertext.
     """
     shared_secret = exchange_ecdh_shared_secret(private_key, public_key)
     iv = random_iv()
@@ -106,7 +105,7 @@ def decrypt_default(
 ):
     """Decrypt data using AESGCM with the recipient's private key and the sender's public key.
     This function uses all defaults in this module for convenience.
-    The IV must be 16 bytes in length and prepended to the ciphertext."""
+    The IV must be 12 bytes in length and prepended to the ciphertext."""
     shared_secret = exchange_ecdh_shared_secret(private_key, public_key)
     iv, data = split_iv_from_data(data)
 

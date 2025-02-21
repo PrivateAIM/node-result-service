@@ -12,22 +12,22 @@ flame-result = "project.server:run_server"
 
 [tool.poetry.dependencies]
 python = ">=3.10,<4"
-minio = "^7.2.14"
-fastapi = {extras = ["standard"], version = "^0.115.6"}
-pydantic-settings = "^2.7.1"
-python-multipart = "^0.0.20"
-jwcrypto = "^1.5.6"
-tomli = "^2.2.1"
-peewee = "^3.17.8"
-psycopg2-binary = "^2.9.10"
-cryptography = "^44.0.1"
+minio = ">=7.2.0"
+fastapi = {extras = ["standard"], version = ">=0.115.0"}
+pydantic-settings = ">=2.7.0"
+python-multipart = ">=0.0.20"
+jwcrypto = ">=1.5.0"
+tomli = ">=2.2.0"
+peewee = ">=3.17.0"
+psycopg2-binary = ">=2.9.0"
+cryptography = ">=44.0.0"
 
 [tool.poetry.group.dev.dependencies]
-pytest = "^8.3.4"
-ruff = "^0.9.0"
-pre-commit = "^4.0.1"
-pytest-dotenv = "^0.5.2"
-testcontainers = {extras = ["postgres"], version = "^4.9.0"}
+pytest = ">=8.3.0"
+ruff = ">=0.9.0"
+pre-commit = ">=4.0.0"
+pytest-dotenv = ">=0.5.0"
+testcontainers = {extras = ["postgres"], version = ">=4.9.0"}
 
 [build-system]
 requires = ["poetry-core"]

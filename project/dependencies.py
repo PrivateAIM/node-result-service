@@ -13,7 +13,14 @@ from minio import Minio
 from starlette import status
 
 from project import crypto
-from project.config import Settings, MinioBucketConfig, AuthFlow, CryptoProvider
+from project.config import (
+    Settings,
+    MinioBucketConfig,
+    AuthFlow,
+    CryptoProvider,
+    FileCryptoConfig,
+    RawCryptoConfig,
+)
 from project.hub import (
     FlamePasswordAuthClient,
     FlameCoreClient,
@@ -167,14 +174,23 @@ def get_postgres_db(
     )
 
 
+def get_ecdh_private_key_from_path(crypto_config: FileCryptoConfig):
+    return crypto.load_ecdh_private_key_from_path(crypto_config.ecdh_private_key_path)
+
+
+def get_ecdh_private_key_from_bytes(crypto_config: RawCryptoConfig):
+    return crypto.load_ecdh_private_key(
+        # replace literal newlines with real newlines (e.g. if provided via env variable)
+        crypto_config.ecdh_private_key.replace(b"\\n", b"\n")
+    )
+
+
 def get_ecdh_private_key(settings: Annotated[Settings, Depends(get_settings)]):
     # settings enforce that either path or bytes are set
     if settings.crypto.provider == CryptoProvider.raw:
-        return crypto.load_ecdh_private_key(settings.crypto.ecdh_private_key)
+        return get_ecdh_private_key_from_bytes(settings.crypto)
 
     if settings.crypto.provider == CryptoProvider.file:
-        return crypto.load_ecdh_private_key_from_path(
-            settings.crypto.ecdh_private_key_path
-        )
+        return get_ecdh_private_key_from_path(settings.crypto)
 
     raise NotImplementedError(f"unknown crypto provider {settings.crypto.provider}")

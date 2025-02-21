@@ -26,17 +26,20 @@ def get_oid_test_jwk() -> jwk.JWK:
     return oid_jwk
 
 
+def get_test_ecdh_keypair_paths() -> tuple[Path, Path]:
+    asset_dir = os.path.join(os.path.dirname(__file__), "..", "assets")
+    return Path(os.path.join(asset_dir, "alice.pfx")), Path(
+        os.path.join(asset_dir, "alice.pem")
+    )
+
+
 @lru_cache()
 def get_test_ecdh_keypair() -> EllipticCurveKeyPair:
-    asset_dir = os.path.join(os.path.dirname(__file__), "..", "assets")
+    private_key_path, public_key_path = get_test_ecdh_keypair_paths()
 
     return (
-        crypto.load_ecdh_private_key_from_path(
-            Path(os.path.join(asset_dir, "alice.pfx"))
-        ),
-        crypto.load_ecdh_public_key_from_path(
-            Path(os.path.join(asset_dir, "alice.pem"))
-        ),
+        crypto.load_ecdh_private_key_from_path(private_key_path),
+        crypto.load_ecdh_public_key_from_path(public_key_path),
     )
 
 

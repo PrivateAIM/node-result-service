@@ -54,9 +54,7 @@ class LocalTaggedResultListResponse(BaseModel):
     results: Annotated[list[LocalTaggedResult], Field(default_factory=list)]
 
 
-def _get_project_id_for_analysis_or_raise(
-    core_client: flame_hub.CoreClient, analysis_id: str
-):
+def _get_project_id_for_analysis_or_raise(core_client: flame_hub.CoreClient, analysis_id: str):
     analysis = core_client.get_analysis(analysis_id)
 
     if analysis is None:
@@ -189,9 +187,7 @@ async def get_results_by_project_tag(
             crud.Result.select()
             .join(crud.TaggedResult)
             .join(crud.Tag)
-            .where(
-                (crud.Tag.project_id == project_id) & (crud.Tag.tag_name == tag_name)
-            )
+            .where((crud.Tag.project_id == project_id) & (crud.Tag.tag_name == tag_name))
         )
 
     return LocalTaggedResultListResponse(

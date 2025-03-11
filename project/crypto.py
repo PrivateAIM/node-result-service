@@ -59,25 +59,19 @@ def exchange_ecdh_shared_secret(
     return shared_secret[: (bit_size // BITS_PER_BYTE)]
 
 
-def encrypt_aesgcm(
-    shared_secret: bytes, iv: bytes, data: bytes, associated_data: bytes = b""
-):
+def encrypt_aesgcm(shared_secret: bytes, iv: bytes, data: bytes, associated_data: bytes = b""):
     """Encrypt bytes with AESGCM using the provided shared secret, initialization vector and associated data."""
     aesgcm = aead.AESGCM(shared_secret)
     return aesgcm.encrypt(iv, data, associated_data)
 
 
-def split_iv_from_data(
-    data: bytes, iv_bit_size: int = DEFAULT_IV_BIT_SIZE
-) -> tuple[bytes, bytes]:
+def split_iv_from_data(data: bytes, iv_bit_size: int = DEFAULT_IV_BIT_SIZE) -> tuple[bytes, bytes]:
     """Split the initialization vector from the ciphertext it's attached to."""
     iv_byte_size = iv_bit_size // BITS_PER_BYTE
     return data[:iv_byte_size], data[iv_byte_size:]
 
 
-def decrypt_aesgcm(
-    shared_secret: bytes, iv: bytes, data: bytes, associated_data: bytes = b""
-):
+def decrypt_aesgcm(shared_secret: bytes, iv: bytes, data: bytes, associated_data: bytes = b""):
     """Decrypt bytes with AESGCM using the provided shared secret, initialization vector and associated data."""
     aesgcm = aead.AESGCM(shared_secret)
     return aesgcm.decrypt(iv, data, associated_data)

@@ -46,9 +46,7 @@ async def submit_intermediate_result_to_hub(
     Returns a 200 on success.
     This endpoint uploads the file and returns a link with which it can be retrieved."""
 
-    analysis_bucket_lst = core_client.find_analysis_buckets(
-        filter={"analysis_id": client_id, "type": "TEMP"}
-    )
+    analysis_bucket_lst = core_client.find_analysis_buckets(filter={"analysis_id": client_id, "type": "TEMP"})
 
     if len(analysis_bucket_lst) == 0:
         raise HTTPException(
@@ -74,14 +72,10 @@ async def submit_intermediate_result_to_hub(
             )
 
         # construct public key
-        remote_public_key = crypto.load_ecdh_public_key_from_hex_string(
-            remote_node.public_key
-        )
+        remote_public_key = crypto.load_ecdh_public_key_from_hex_string(remote_node.public_key)
 
         # encrypt result file
-        result_file = crypto.encrypt_default(
-            private_key, remote_public_key, result_file
-        )
+        result_file = crypto.encrypt_default(private_key, remote_public_key, result_file)
 
     bucket_file_lst = storage_client.upload_to_bucket(
         analysis_bucket.external_id,
@@ -102,9 +96,7 @@ async def submit_intermediate_result_to_hub(
     bucket_file = bucket_file_lst.pop()
 
     # link bucket file to analysis
-    core_client.create_analysis_bucket_file(
-        bucket_file.name, bucket_file, analysis_bucket
-    )
+    core_client.create_analysis_bucket_file(bucket_file.name, bucket_file, analysis_bucket)
 
     return IntermediateUploadResponse(
         object_id=bucket_file.id,

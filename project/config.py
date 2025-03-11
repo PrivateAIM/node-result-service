@@ -50,9 +50,7 @@ class HubConfig(BaseModel):
     auth_base_url: HttpUrl = "https://auth.privateaim.net"
     storage_base_url: HttpUrl = "https://storage.privateaim.net"
 
-    auth: Annotated[
-        Union[RobotAuthConfig, PasswordAuthConfig], Field(discriminator="flow")
-    ]
+    auth: Annotated[Union[RobotAuthConfig, PasswordAuthConfig], Field(discriminator="flow")]
 
     model_config = ConfigDict(frozen=True)
 
@@ -85,9 +83,7 @@ class Settings(BaseSettings):
     minio: MinioBucketConfig
     oidc: OIDCConfig
     postgres: PostgresConfig
-    crypto: Annotated[
-        Union[RawCryptoConfig, FileCryptoConfig], Field(discriminator="provider")
-    ]
+    crypto: Annotated[Union[RawCryptoConfig, FileCryptoConfig], Field(discriminator="provider")]
 
     model_config = SettingsConfigDict(
         frozen=True,

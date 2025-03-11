@@ -14,9 +14,7 @@ from project.routers import final, intermediate, local
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     os.makedirs("logs", exist_ok=True)
-    log_config_file_path = os.path.join(
-        os.path.dirname(__file__), "..", "config", "logging.json"
-    )
+    log_config_file_path = os.path.join(os.path.dirname(__file__), "..", "config", "logging.json")
 
     with open(log_config_file_path) as f:
         log_config = json.load(f)

@@ -16,9 +16,7 @@ from tests.common import env
 
 @lru_cache()
 def get_oid_test_jwk() -> jwk.JWK:
-    with open(
-        os.path.join(os.path.dirname(__file__), "..", "assets", "keypair.pem"), "rb"
-    ) as f:
+    with open(os.path.join(os.path.dirname(__file__), "..", "assets", "keypair.pem"), "rb") as f:
         oid_jwk = jwk.JWK()
         oid_jwk.import_from_pem(f.read())
         oid_jwk["use"] = "sig"
@@ -28,9 +26,7 @@ def get_oid_test_jwk() -> jwk.JWK:
 
 def get_test_ecdh_keypair_paths() -> tuple[Path, Path]:
     asset_dir = os.path.join(os.path.dirname(__file__), "..", "assets")
-    return Path(os.path.join(asset_dir, "alice.pfx")), Path(
-        os.path.join(asset_dir, "alice.pem")
-    )
+    return Path(os.path.join(asset_dir, "alice.pfx")), Path(os.path.join(asset_dir, "alice.pem"))
 
 
 @lru_cache()

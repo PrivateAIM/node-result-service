@@ -156,33 +156,23 @@ def robot_auth_client():
 
 @pytest.fixture(scope="package")
 def auth_client(password_auth_client):
-    return flame_hub.AuthClient(
-        auth=password_auth_client, base_url=env.hub_auth_base_url()
-    )
+    return flame_hub.AuthClient(auth=password_auth_client, base_url=env.hub_auth_base_url())
 
 
 @pytest.fixture(scope="package")
 def core_client(password_auth_client):
-    return flame_hub.CoreClient(
-        auth=password_auth_client, base_url=env.hub_core_base_url()
-    )
+    return flame_hub.CoreClient(auth=password_auth_client, base_url=env.hub_core_base_url())
 
 
 @pytest.fixture(scope="package")
 def storage_client(password_auth_client):
-    return flame_hub.StorageClient(
-        auth=password_auth_client, base_url=env.hub_storage_base_url()
-    )
+    return flame_hub.StorageClient(auth=password_auth_client, base_url=env.hub_storage_base_url())
 
 
 @pytest.fixture
 def project_id(core_client):
-    preferred_base_image_name = os.environ.get(
-        "PYTEST__PREFERRED_BASE_MASTER_IMAGE", "python/base"
-    )
-    master_images = core_client.find_master_images(
-        filter={"path": preferred_base_image_name}
-    )
+    preferred_base_image_name = os.environ.get("PYTEST__PREFERRED_BASE_MASTER_IMAGE", "python/base")
+    master_images = core_client.find_master_images(filter={"path": preferred_base_image_name})
 
     if len(master_images) != 1:
         raise ValueError(f"expected single master image, got {len(master_images)}")

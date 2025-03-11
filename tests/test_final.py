@@ -12,16 +12,12 @@ pytestmark = pytest.mark.live
 
 def test_200_submit_to_upload(test_client, rng, core_client, analysis_id):
     def _check_result_bucket_exists():
-        return core_client.find_analysis_buckets(
-            filter={"analysis_id": analysis_id, "type": "RESULT"}
-        )
+        return core_client.find_analysis_buckets(filter={"analysis_id": analysis_id, "type": "RESULT"})
 
     assert eventually(_check_result_bucket_exists)
 
     analysis_file_count_old = len(
-        core_client.find_analysis_bucket_files(
-            filter={"analysis_id": analysis_id, "type": "RESULT"}
-        )
+        core_client.find_analysis_bucket_files(filter={"analysis_id": analysis_id, "type": "RESULT"})
     )
 
     blob = next_random_bytes(rng)
@@ -34,9 +30,7 @@ def test_200_submit_to_upload(test_client, rng, core_client, analysis_id):
     assert r.status_code == status.HTTP_204_NO_CONTENT
 
     analysis_file_count_new = len(
-        core_client.find_analysis_bucket_files(
-            filter={"analysis_id": analysis_id, "type": "RESULT"}
-        )
+        core_client.find_analysis_bucket_files(filter={"analysis_id": analysis_id, "type": "RESULT"})
     )
 
     assert analysis_file_count_new > analysis_file_count_old
@@ -53,6 +47,4 @@ def test_404_submit_invalid_id(test_client, rng):
     )
 
     assert r.status_code == status.HTTP_404_NOT_FOUND
-    assert (
-        detail_of(r) == f"Result bucket for analysis with ID {rand_uuid} was not found"
-    )
+    assert detail_of(r) == f"Result bucket for analysis with ID {rand_uuid} was not found"

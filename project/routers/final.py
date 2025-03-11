@@ -30,9 +30,7 @@ async def submit_final_result_to_hub(
     """Upload a file as a final result to the FLAME Hub.
     Returns a 204 on success."""
     # fetch analysis bucket
-    analysis_bucket_lst = core_client.find_analysis_buckets(
-        filter={"analysis_id": client_id, "type": "RESULT"}
-    )
+    analysis_bucket_lst = core_client.find_analysis_buckets(filter={"analysis_id": client_id, "type": "RESULT"})
 
     if len(analysis_bucket_lst) == 0:
         raise HTTPException(
@@ -62,6 +60,4 @@ async def submit_final_result_to_hub(
     bucket_file = bucket_file_lst.pop()
 
     # link file to analysis
-    core_client.create_analysis_bucket_file(
-        bucket_file.name, bucket_file, analysis_bucket
-    )
+    core_client.create_analysis_bucket_file(bucket_file.name, bucket_file, analysis_bucket)

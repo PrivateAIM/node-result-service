@@ -78,10 +78,7 @@ def get_client_id(
 ):
     # TODO here be dragons!
     if settings.oidc.skip_jwt_validation:
-        logger.warning(
-            "JWT validation is skipped, so JWT could be signed by an untrusted party "
-            "or be expired"
-        )
+        logger.warning("JWT validation is skipped, so JWT could be signed by an untrusted party or be expired")
 
         token = jwt.JWT(
             jwt=credentials.credentials,
@@ -93,9 +90,7 @@ def get_client_id(
         # this hurts to write but there's no other way. token.token is an instance of JWS, and accessing
         # the payload property expects that it is validated. but it isn't since we're skipping validation.
         # so we have to access the undocumented property objects and read the payload from there.
-        return json.loads(token.token.objects["payload"])[
-            settings.oidc.client_id_claim_name
-        ]
+        return json.loads(token.token.objects["payload"])[settings.oidc.client_id_claim_name]
 
     try:
         token = jwt.JWT(
@@ -114,9 +109,7 @@ def get_client_id(
         return jwt_data[settings.oidc.client_id_claim_name]
     except (common.JWException, ValueError):
         logger.exception("Failed to deserialize JWT")
-        raise HTTPException(
-            status_code=status.HTTP_403_FORBIDDEN, detail="JWT is malformed"
-        )
+        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="JWT is malformed")
 
 
 def get_flame_hub_auth_flow(settings: Annotated[Settings, Depends(get_settings)]):

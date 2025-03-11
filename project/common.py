@@ -1,9 +1,7 @@
 import urllib.parse
 
 
-def build_url(
-    scheme="", netloc="", path="", query: dict[str, str] | None = None, fragment=""
-):
+def build_url(scheme="", netloc="", path="", query: dict[str, str] | None = None, fragment=""):
     """
     Build a URL consisting of multiple parts.
     The function signature is identical to that of `urllib.parse.urlunsplit`, except that query parameters can be

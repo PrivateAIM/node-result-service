@@ -4,6 +4,7 @@ import threading
 import urllib.parse
 from http.server import BaseHTTPRequestHandler, HTTPServer
 
+import flame_hub.auth
 import peewee as pw
 import pytest
 from jwcrypto import jwk
@@ -12,12 +13,6 @@ from testcontainers.minio import MinioContainer
 from testcontainers.postgres import PostgresContainer
 
 from project.dependencies import get_postgres_db, get_local_minio, get_ecdh_private_key
-from project.hub import (
-    FlamePasswordAuthClient,
-    FlameCoreClient,
-    FlameStorageClient,
-    FlameRobotAuthClient,
-)
 from project.server import app
 from tests.common import env
 from tests.common.auth import get_oid_test_jwk, get_test_ecdh_keypair
@@ -143,7 +138,7 @@ def rng():
 
 @pytest.fixture(scope="package")
 def password_auth_client():
-    return FlamePasswordAuthClient(
+    return flame_hub.auth.PasswordAuth(
         env.hub_password_auth_username(),
         env.hub_password_auth_password(),
         base_url=env.hub_auth_base_url(),
@@ -152,7 +147,7 @@ def password_auth_client():
 
 @pytest.fixture(scope="package")
 def robot_auth_client():
-    return FlameRobotAuthClient(
+    return flame_hub.auth.RobotAuth(
         env.hub_robot_auth_id(),
         env.hub_robot_auth_secret(),
         base_url=env.hub_auth_base_url(),
@@ -160,30 +155,50 @@ def robot_auth_client():
 
 
 @pytest.fixture(scope="package")
+def auth_client(password_auth_client):
+    return flame_hub.AuthClient(
+        auth=password_auth_client, base_url=env.hub_auth_base_url()
+    )
+
+
+@pytest.fixture(scope="package")
 def core_client(password_auth_client):
-    return FlameCoreClient(password_auth_client, base_url=env.hub_core_base_url())
+    return flame_hub.CoreClient(
+        auth=password_auth_client, base_url=env.hub_core_base_url()
+    )
 
 
 @pytest.fixture(scope="package")
 def storage_client(password_auth_client):
-    return FlameStorageClient(password_auth_client, base_url=env.hub_storage_base_url())
+    return flame_hub.StorageClient(
+        auth=password_auth_client, base_url=env.hub_storage_base_url()
+    )
 
 
 @pytest.fixture
 def project_id(core_client):
+    preferred_base_image_name = os.environ.get(
+        "PYTEST__PREFERRED_BASE_MASTER_IMAGE", "python/base"
+    )
+    master_images = core_client.find_master_images(
+        filter={"path": preferred_base_image_name}
+    )
+
+    if len(master_images) != 1:
+        raise ValueError(f"expected single master image, got {len(master_images)}")
+
     project_name = next_prefixed_name()
-    project = core_client.create_project(project_name)
+    project = core_client.create_project(project_name, master_images.pop())
 
     # check that project was successfully created
     assert project.name == project_name
 
     # check that project can be retrieved
-    project_get = core_client.get_project_by_id(project.id)
+    project_get = core_client.get_project(project.id)
     assert project_get.id == project.id
 
     # check that project appears in list
-    project_get_list = core_client.get_project_list()
-    assert any([p.id == project.id for p in project_get_list.data])
+    assert len(core_client.find_projects(filter={"id": project.id})) == 1
 
     yield project.id
 
@@ -191,7 +206,7 @@ def project_id(core_client):
     core_client.delete_project(project.id)
 
     # check that project is no longer found
-    assert core_client.get_project_by_id(project.id) is None
+    assert core_client.get_project(project.id) is None
 
 
 @pytest.fixture
@@ -204,12 +219,11 @@ def analysis_id(core_client, project_id):
     assert analysis.project_id == project_id
 
     # check that GET on analysis works
-    analysis_get = core_client.get_analysis_by_id(analysis.id)
+    analysis_get = core_client.get_analysis(analysis.id)
     assert analysis_get.id == analysis.id
 
     # check that analysis appears in list
-    analysis_get_list = core_client.get_analysis_list()
-    assert any([a.id == analysis.id for a in analysis_get_list.data])
+    assert len(core_client.find_analyses(filter={"id": analysis.id})) == 1
 
     yield analysis.id
 
@@ -217,16 +231,14 @@ def analysis_id(core_client, project_id):
     core_client.delete_analysis(analysis.id)
 
     # check that analysis is no longer found
-    assert core_client.get_analysis_by_id(analysis.id) is None
+    assert core_client.get_analysis(analysis.id) is None
 
 
 @pytest.fixture
-def realm_id(robot_auth_client):
+def realm_id(auth_client):
     preferred_realm_name = os.environ.get("PYTEST__PREFERRED_REALM_NAME", "master")
-    realm_list = robot_auth_client.get_realm_list()
+    realm_list = auth_client.find_realms(filter={"name": preferred_realm_name})
 
-    for realm in realm_list.data:
-        if realm.name == preferred_realm_name:
-            return realm.id
+    assert len(realm_list) == 1
 
-    raise ValueError(f"realm `{preferred_realm_name}` not found")
+    yield realm_list.pop()

@@ -21,6 +21,7 @@ tomli = ">=2.2.0"
 peewee = ">=3.17.0"
 psycopg2-binary = ">=2.9.0"
 cryptography = ">=44.0.0"
+flame-hub-client = "^0.1.0"
 
 [tool.poetry.group.dev.dependencies]
 pytest = ">=8.3.0"

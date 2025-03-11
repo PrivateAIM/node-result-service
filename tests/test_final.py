@@ -12,11 +12,17 @@ pytestmark = pytest.mark.live
 
 def test_200_submit_to_upload(test_client, rng, core_client, analysis_id):
     def _check_result_bucket_exists():
-        return core_client.get_analysis_bucket(analysis_id, "RESULT") is not None
+        return core_client.find_analysis_buckets(
+            filter={"analysis_id": analysis_id, "type": "RESULT"}
+        )
 
     assert eventually(_check_result_bucket_exists)
 
-    analysis_file_count_old = len(core_client.get_analysis_bucket_file_list().data)
+    analysis_file_count_old = len(
+        core_client.find_analysis_bucket_files(
+            filter={"analysis_id": analysis_id, "type": "RESULT"}
+        )
+    )
 
     blob = next_random_bytes(rng)
     r = test_client.put(
@@ -27,7 +33,12 @@ def test_200_submit_to_upload(test_client, rng, core_client, analysis_id):
 
     assert r.status_code == status.HTTP_204_NO_CONTENT
 
-    analysis_file_count_new = len(core_client.get_analysis_bucket_file_list().data)
+    analysis_file_count_new = len(
+        core_client.find_analysis_bucket_files(
+            filter={"analysis_id": analysis_id, "type": "RESULT"}
+        )
+    )
+
     assert analysis_file_count_new > analysis_file_count_old
 
 

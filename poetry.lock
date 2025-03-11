@@ -539,6 +539,22 @@ testing = ["covdefaults (>=2.3)", "coverage (>=7.6.10)", "diff-cover (>=9.2.1)",
 typing = ["typing-extensions (>=4.12.2) ; python_version < \"3.11\""]
 
 [[package]]
+name = "flame-hub-client"
+version = "0.1.0"
+description = "HTTP client for interacting with FLAME Hub services."
+optional = false
+python-versions = "<4,>=3.10"
+groups = ["main"]
+files = [
+    {file = "flame_hub_client-0.1.0-py3-none-any.whl", hash = "sha256:5fa6bf5a140aa173d04038c47253e590e6833be9bb0daa35e36765ce09caae9b"},
+    {file = "flame_hub_client-0.1.0.tar.gz", hash = "sha256:bd86d8621c37d228f22ccc35011119d1b09db1a7ac9d2f3fdbee404d32acb35d"},
+]
+
+[package.dependencies]
+httpx = ">=0.28.0,<0.29.0"
+pydantic = ">=2.10.0,<3.0.0"
+
+[[package]]
 name = "h11"
 version = "0.14.0"
 description = "A pure-Python, bring-your-own-I/O implementation of HTTP/1.1"
@@ -2029,4 +2045,4 @@ files = [
 [metadata]
 lock-version = "2.1"
 python-versions = ">=3.10,<4"
-content-hash = "65f363f321d0938856a649e8231a7c9dbfab180043274fa7c5dd361f46a938b6"
+content-hash = "cdf68a499843acebf41ae049399a83ec0537de4a1561735b16d197f0a7ede68b"

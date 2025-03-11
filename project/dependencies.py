@@ -3,6 +3,7 @@ import logging
 from functools import lru_cache
 from typing import Annotated
 
+import flame_hub.auth
 import httpx
 import peewee as pw
 from fastapi import Depends, HTTPException
@@ -20,13 +21,6 @@ from project.config import (
     CryptoProvider,
     FileCryptoConfig,
     RawCryptoConfig,
-)
-from project.hub import (
-    FlamePasswordAuthClient,
-    FlameCoreClient,
-    FlameStorageClient,
-    FlameRobotAuthClient,
-    BaseAuthClient,
 )
 
 security = HTTPBearer()
@@ -125,16 +119,16 @@ def get_client_id(
         )
 
 
-def get_auth_client(settings: Annotated[Settings, Depends(get_settings)]):
+def get_flame_hub_auth_flow(settings: Annotated[Settings, Depends(get_settings)]):
     if settings.hub.auth.flow == AuthFlow.password:
-        return FlamePasswordAuthClient(
+        return flame_hub.auth.PasswordAuth(
             settings.hub.auth.username,
             settings.hub.auth.password,
             base_url=str(settings.hub.auth_base_url),
         )
 
     if settings.hub.auth.flow == AuthFlow.robot:
-        return FlameRobotAuthClient(
+        return flame_hub.auth.RobotAuth(
             settings.hub.auth.id,
             settings.hub.auth.secret,
             base_url=str(settings.hub.auth_base_url),
@@ -145,19 +139,28 @@ def get_auth_client(settings: Annotated[Settings, Depends(get_settings)]):
 
 def get_core_client(
     settings: Annotated[Settings, Depends(get_settings)],
-    auth_client: Annotated[BaseAuthClient, Depends(get_auth_client)],
+    auth_flow: Annotated[
+        flame_hub.auth.RobotAuth | flame_hub.auth.PasswordAuth,
+        Depends(get_flame_hub_auth_flow),
+    ],
 ):
-    return FlameCoreClient(
-        auth_client,
+    return flame_hub.CoreClient(
         base_url=str(settings.hub.core_base_url),
+        auth=auth_flow,
     )
 
 
 def get_storage_client(
     settings: Annotated[Settings, Depends(get_settings)],
-    auth_client: Annotated[BaseAuthClient, Depends(get_auth_client)],
+    auth_flow: Annotated[
+        flame_hub.auth.RobotAuth | flame_hub.auth.PasswordAuth,
+        Depends(get_flame_hub_auth_flow),
+    ],
 ):
-    return FlameStorageClient(auth_client, base_url=str(settings.hub.storage_base_url))
+    return flame_hub.StorageClient(
+        base_url=str(settings.hub.storage_base_url),
+        auth=auth_flow,
+    )
 
 
 def get_postgres_db(

@@ -24,7 +24,9 @@ pytestmark = pytest.mark.live
 @pytest.fixture()
 def node(robot_auth_client, core_client, realm_id):
     node_name = next_uuid()
-    new_node = core_client.create_node(node_name, realm_id, "default")
+    new_node = core_client.create_node(
+        name=node_name, realm_id=realm_id, node_type="default"
+    )
     yield new_node
     core_client.delete_node(new_node.id)
 
@@ -33,7 +35,14 @@ def test_200_submit_receive_intermediate_encrypted(
     test_client, rng, analysis_id, node, core_client
 ):
     def _check_temp_bucket_exists():
-        return core_client.get_analysis_bucket(analysis_id, "TEMP") is not None
+        return (
+            len(
+                core_client.find_analysis_buckets(
+                    filter={"analysis_id": analysis_id, "type": "TEMP"}
+                )
+            )
+            == 1
+        )
 
     assert eventually(_check_temp_bucket_exists)
 
@@ -41,10 +50,10 @@ def test_200_submit_receive_intermediate_encrypted(
 
     # update node with public key
     remote_private_key_bytes, remote_public_key_bytes = next_ecdh_keypair_bytes()
-    core_client.update_public_key_for_node(node.id, remote_public_key_bytes)
+    core_client.update_node(node, public_key=remote_public_key_bytes.decode("ascii"))
 
     # update local node reference (public key must be updated)
-    node = core_client.get_node_by_id(node.id)
+    node = core_client.get_node(node.id)
     assert node.public_key is not None
 
     blob = next_random_bytes(rng)
@@ -84,7 +93,14 @@ def test_400_submit_encrypted_no_remote_public_key(
     test_client, rng, analysis_id, node, core_client
 ):
     def _check_temp_bucket_exists():
-        return core_client.get_analysis_bucket(analysis_id, "TEMP") is not None
+        return (
+            len(
+                core_client.find_analysis_buckets(
+                    filter={"analysis_id": analysis_id, "type": "TEMP"}
+                )
+            )
+            == 1
+        )
 
     assert eventually(_check_temp_bucket_exists)
 
@@ -106,7 +122,14 @@ def test_400_submit_encrypted_no_remote_public_key(
 
 def test_200_submit_receive_intermediate(test_client, rng, analysis_id, core_client):
     def _check_temp_bucket_exists():
-        return core_client.get_analysis_bucket(analysis_id, "TEMP") is not None
+        return (
+            len(
+                core_client.find_analysis_buckets(
+                    filter={"analysis_id": analysis_id, "type": "TEMP"}
+                )
+            )
+            == 1
+        )
 
     assert eventually(_check_temp_bucket_exists)
 

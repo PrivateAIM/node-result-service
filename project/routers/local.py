@@ -3,6 +3,7 @@ import re
 import uuid
 from typing import Annotated
 
+import flame_hub
 import peewee as pw
 from fastapi import Depends, UploadFile, APIRouter, HTTPException, File, Form
 from minio import Minio, S3Error
@@ -20,7 +21,6 @@ from project.dependencies import (
     get_postgres_db,
     get_core_client,
 )
-from project.hub import FlameCoreClient
 
 router = APIRouter()
 logger = logging.getLogger(__name__)
@@ -55,9 +55,9 @@ class LocalTaggedResultListResponse(BaseModel):
 
 
 def _get_project_id_for_analysis_or_raise(
-    core_client: FlameCoreClient, analysis_id: str
+    core_client: flame_hub.CoreClient, analysis_id: str
 ):
-    analysis = core_client.get_analysis_by_id(analysis_id)
+    analysis = core_client.get_analysis(analysis_id)
 
     if analysis is None:
         raise HTTPException(
@@ -80,7 +80,7 @@ async def submit_intermediate_result_to_local(
     settings: Annotated[Settings, Depends(get_settings)],
     minio: Annotated[Minio, Depends(get_local_minio)],
     db: Annotated[pw.PostgresqlDatabase, Depends(get_postgres_db)],
-    core_client: Annotated[FlameCoreClient, Depends(get_core_client)],
+    core_client: Annotated[flame_hub.CoreClient, Depends(get_core_client)],
     request: Request,
     tag: Annotated[str | None, Form()] = None,
 ):
@@ -140,7 +140,7 @@ async def submit_intermediate_result_to_local(
 )
 async def get_project_tags(
     client_id: Annotated[str, Depends(get_client_id)],
-    core_client: Annotated[FlameCoreClient, Depends(get_core_client)],
+    core_client: Annotated[flame_hub.CoreClient, Depends(get_core_client)],
     db: Annotated[pw.PostgresqlDatabase, Depends(get_postgres_db)],
     request: Request,
 ):
@@ -177,7 +177,7 @@ async def get_results_by_project_tag(
     tag_name: str,
     client_id: Annotated[str, Depends(get_client_id)],
     db: Annotated[pw.PostgresqlDatabase, Depends(get_postgres_db)],
-    core_client: Annotated[FlameCoreClient, Depends(get_core_client)],
+    core_client: Annotated[flame_hub.CoreClient, Depends(get_core_client)],
     request: Request,
 ):
     """Get a list of files assigned to a tag.

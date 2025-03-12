@@ -4,9 +4,12 @@ import os.path
 from contextlib import asynccontextmanager
 from pathlib import Path
 
+import flame_hub
 import tomli
 import uvicorn
-from fastapi import FastAPI
+from fastapi import FastAPI, HTTPException
+from starlette import status
+from starlette.requests import Request
 
 from project.routers import final, intermediate, local
 
@@ -65,6 +68,25 @@ app = FastAPI(
 async def do_healthcheck():
     """Check whether the service is ready to process requests. Responds with a 200 on success."""
     return {"status": "ok"}
+
+
+logger = logging.getLogger(__name__)
+
+
+# re-raise as a http exception
+@app.exception_handler(flame_hub.HubAPIError)
+async def handle_hub_api_error(request: Request, exc: flame_hub.HubAPIError):
+    logger.exception("unexpected response from remote", exc_info=exc)
+
+    remote_status_code = "unknown"
+
+    if exc.error_response is not None:
+        remote_status_code = exc.error_response.status_code
+
+    raise HTTPException(
+        status_code=status.HTTP_502_BAD_GATEWAY,
+        detail=f"Hub returned an unexpected response ({remote_status_code})",
+    )
 
 
 app.include_router(

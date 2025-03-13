@@ -35,7 +35,7 @@ RUN set -ex && \
 ENV PYTHONPATH=/app
 ENV PYTHONUNBUFFERED=1
 
-ENTRYPOINT [ "/usr/local/bin/python", "-m", "uvicorn", "project.server:app" ]
+ENTRYPOINT [ "/usr/local/bin/python", "-m", "uvicorn", "project.main:app" ]
 CMD [ "--host", "0.0.0.0", "--port", "8080", "--workers", "4" ]
 
 USER nonroot

@@ -1,23 +1,50 @@
-import json
 import logging.config
-import os.path
 from contextlib import asynccontextmanager
 from pathlib import Path
 
 import flame_hub
-import tomli
-import uvicorn
-from fastapi import FastAPI, HTTPException
+from fastapi import FastAPI, Request, HTTPException
+from pydantic import BaseModel
 from starlette import status
-from starlette.requests import Request
 
 from project.routers import final, intermediate, local
 
+_app: FastAPI | None = None
+
+
+class Project(BaseModel):
+    version: str
+    description: str
+
+
+class PyProject(BaseModel):
+    project: Project
+
+
+def get_project_root():
+    return Path(__file__).parent.parent
+
+
+def load_pyproject():
+    import tomli
+
+    with open(get_project_root() / "pyproject.toml", mode="rb") as f:
+        pyproject_data = tomli.load(f)
+        return PyProject(**pyproject_data)
+
+
+def load_readme():
+    with open(get_project_root() / "README.md", mode="r") as f:
+        return f.read()
+
 
 @asynccontextmanager
-async def lifespan(app: FastAPI):
+async def lifespan(_: FastAPI):
+    import os
+    import json
+
     os.makedirs("logs", exist_ok=True)
-    log_config_file_path = os.path.join(os.path.dirname(__file__), "..", "config", "logging.json")
+    log_config_file_path = get_project_root() / "config" / "logging.json"
 
     with open(log_config_file_path) as f:
         log_config = json.load(f)
@@ -27,90 +54,80 @@ async def lifespan(app: FastAPI):
     yield
 
 
-with open(Path(__file__).parent.parent / "pyproject.toml", mode="rb") as f:
-    pyproject_data = tomli.load(f)
+def get_server_instance():
+    global _app
 
-with open(Path(__file__).parent.parent / "README.md", mode="r") as f:
-    app_description = f.read()
+    if _app is not None:
+        return _app
 
-app_version = pyproject_data["tool"]["poetry"]["version"]
-app_summary = pyproject_data["tool"]["poetry"]["description"]
+    project_data = load_pyproject()
+    project_readme = load_readme()
 
-app = FastAPI(
-    title="FLAME Node Result Service",
-    summary=app_summary,
-    version=app_version,
-    lifespan=lifespan,
-    description=app_description,
-    license_info={
-        "name": "Apache 2.0",
-        "url": "https://www.apache.org/licenses/LICENSE-2.0.html",
-        "identifier": "Apache-2.0",
-    },
-    openapi_tags=[
-        {
-            "name": "final",
-            "description": "Upload final results to FLAME Hub",
+    logger = logging.getLogger(__name__)
+
+    _app = FastAPI(
+        title="FLAME Node Result Service",
+        summary=project_data.project.description,
+        version=project_data.project.version,
+        lifespan=lifespan,
+        description=project_readme,
+        license_info={
+            "name": "Apache 2.0",
+            "url": "https://www.apache.org/licenses/LICENSE-2.0.html",
+            "identifier": "Apache-2.0",
         },
-        {
-            "name": "intermediate",
-            "description": "Upload intermediate results to FLAME Hub",
-        },
-        {
-            "name": "local",
-            "description": "Upload intermediate results to local storage",
-        },
-    ],
-)
-
-
-@app.get("/healthz", summary="Check service readiness", operation_id="getHealth")
-async def do_healthcheck():
-    """Check whether the service is ready to process requests. Responds with a 200 on success."""
-    return {"status": "ok"}
-
-
-logger = logging.getLogger(__name__)
-
-
-# re-raise as a http exception
-@app.exception_handler(flame_hub.HubAPIError)
-async def handle_hub_api_error(request: Request, exc: flame_hub.HubAPIError):
-    logger.exception("unexpected response from remote", exc_info=exc)
-
-    remote_status_code = "unknown"
-
-    if exc.error_response is not None:
-        remote_status_code = exc.error_response.status_code
-
-    raise HTTPException(
-        status_code=status.HTTP_502_BAD_GATEWAY,
-        detail=f"Hub returned an unexpected response ({remote_status_code})",
+        openapi_tags=[
+            {
+                "name": "final",
+                "description": "Upload final results to FLAME Hub",
+            },
+            {
+                "name": "intermediate",
+                "description": "Upload intermediate results to FLAME Hub",
+            },
+            {
+                "name": "local",
+                "description": "Upload intermediate results to local storage",
+            },
+        ],
     )
 
+    @_app.get("/healthz", summary="Check service readiness", operation_id="getHealth")
+    async def do_healthcheck():
+        """Check whether the service is ready to process requests. Responds with a 200 on success."""
+        return {"status": "ok"}
 
-app.include_router(
-    final.router,
-    prefix="/final",
-    tags=["final"],
-)
+    # re-raise as a http exception
+    @_app.exception_handler(flame_hub.HubAPIError)
+    async def handle_hub_api_error(_: Request, exc: flame_hub.HubAPIError):
+        logger.exception("unexpected response from remote", exc_info=exc)
 
-app.include_router(
-    intermediate.router,
-    prefix="/intermediate",
-    tags=["intermediate"],
-)
+        remote_status_code = "unknown"
 
-app.include_router(
-    local.router,
-    prefix="/local",
-    tags=["local"],
-)
+        if exc.error_response is not None:
+            remote_status_code = exc.error_response.status_code
 
+        raise HTTPException(
+            status_code=status.HTTP_502_BAD_GATEWAY,
+            detail=f"Hub returned an unexpected response ({remote_status_code})",
+        )
 
-def run_server():
-    uvicorn.run(app, host="0.0.0.0", port=8000)
+    _app.include_router(
+        final.router,
+        prefix="/final",
+        tags=["final"],
+    )
 
+    _app.include_router(
+        intermediate.router,
+        prefix="/intermediate",
+        tags=["intermediate"],
+    )
 
-if __name__ == "__main__":
-    run_server()
+    _app.include_router(
+        local.router,
+        prefix="/local",
+        tags=["local"],
+    )
+
+    return _app

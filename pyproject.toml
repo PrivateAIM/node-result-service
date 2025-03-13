@@ -1,27 +1,31 @@
-[tool.poetry]
+[project]
 name = "flame-result-service"
 version = "0.1.0"
 description = "Service for handling intermediate files and submitting result files to the FLAME Hub."
-authors = ["Maximilian Jugl <Maximilian.Jugl@medizin.uni-leipzig.de>"]
+authors = [
+    {name = "Maximilian Jugl", email="Maximilian.Jugl@medizin.uni-leipzig.de"}
+]
 readme = "README.md"
-packages = [{ include = "project" }]
+requires-python = ">=3.10,<4"
+dependencies = [
+    "minio (>=7.2.0,<8)",
+    "fastapi[standard] (>=0.115.0,<1)",
+    "pydantic-settings (>=2.7.0,<3)",
+    "python-multipart (>=0.0.20,<1)",
+    "jwcrypto (>=1.5.0,<2)",
+    "tomli (>=2.2.0,<3)",
+    "peewee (>=3.17.0,<4)",
+    "psycopg2-binary (>=2.9.0,<3)",
+    "cryptography (>=44.0.0,<45)",
+    "flame-hub-client (>=0.1.0,<1)",
+]
 license = "Apache-2.0"
 
-[tool.poetry.scripts]
-flame-result = "project.server:run_server"
+[project.scripts]
+flame-result = "project.main:run_server"
 
-[tool.poetry.dependencies]
-python = ">=3.10,<4"
-minio = ">=7.2.0"
-fastapi = {extras = ["standard"], version = ">=0.115.0"}
-pydantic-settings = ">=2.7.0"
-python-multipart = ">=0.0.20"
-jwcrypto = ">=1.5.0"
-tomli = ">=2.2.0"
-peewee = ">=3.17.0"
-psycopg2-binary = ">=2.9.0"
-cryptography = ">=44.0.0"
-flame-hub-client = "^0.1.0"
+[tool.poetry]
+packages = [{ include = "project" }]
 
 [tool.poetry.group.dev.dependencies]
 pytest = ">=8.3.0"
@@ -44,5 +48,5 @@ env_files = [
 addopts = "-m \"not live\""
 
 [build-system]
-requires = ["poetry-core"]
+requires = ["poetry-core>=2.0.0,<3.0.0"]
 build-backend = "poetry.core.masonry.api"

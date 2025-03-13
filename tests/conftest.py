@@ -13,7 +13,7 @@ from testcontainers.minio import MinioContainer
 from testcontainers.postgres import PostgresContainer
 
 from project.dependencies import get_postgres_db, get_local_minio, get_ecdh_private_key
-from project.server import app
+from project.server import get_server_instance
 from tests.common import env
 from tests.common.auth import get_oid_test_jwk, get_test_ecdh_keypair
 from tests.common.helpers import (
@@ -88,6 +88,8 @@ def override_ecdh_private_key():
 # noinspection PyUnresolvedReferences
 @pytest.fixture(scope="package")
 def test_app(override_minio, override_postgres, override_ecdh_private_key):
+    app = get_server_instance()
+
     if callable(override_postgres):
         app.dependency_overrides[get_postgres_db] = override_postgres
 

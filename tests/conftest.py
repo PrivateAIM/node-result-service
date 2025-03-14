@@ -1,12 +1,15 @@
 import os
 import random
+import ssl
 import threading
 import urllib.parse
 from http.server import BaseHTTPRequestHandler, HTTPServer
 
 import flame_hub.auth
+import httpx
 import peewee as pw
 import pytest
+import truststore
 from jwcrypto import jwk
 from starlette.testclient import TestClient
 from testcontainers.minio import MinioContainer
@@ -139,36 +142,47 @@ def rng():
 
 
 @pytest.fixture(scope="package")
-def password_auth_client():
+def ssl_context():
+    return truststore.SSLContext(ssl.PROTOCOL_TLS_CLIENT)
+
+
+@pytest.fixture(scope="package")
+def password_auth_client(ssl_context):
     return flame_hub.auth.PasswordAuth(
         env.hub_password_auth_username(),
         env.hub_password_auth_password(),
-        base_url=env.hub_auth_base_url(),
+        client=httpx.Client(base_url=env.hub_auth_base_url(), verify=ssl_context),
     )
 
 
 @pytest.fixture(scope="package")
-def robot_auth_client():
+def robot_auth_client(ssl_context):
     return flame_hub.auth.RobotAuth(
         env.hub_robot_auth_id(),
         env.hub_robot_auth_secret(),
-        base_url=env.hub_auth_base_url(),
+        client=httpx.Client(base_url=env.hub_auth_base_url(), verify=ssl_context),
     )
 
 
 @pytest.fixture(scope="package")
-def auth_client(password_auth_client):
-    return flame_hub.AuthClient(auth=password_auth_client, base_url=env.hub_auth_base_url())
+def auth_client(password_auth_client, ssl_context):
+    return flame_hub.AuthClient(
+        client=httpx.Client(auth=password_auth_client, base_url=env.hub_auth_base_url(), verify=ssl_context)
+    )
 
 
 @pytest.fixture(scope="package")
-def core_client(password_auth_client):
-    return flame_hub.CoreClient(auth=password_auth_client, base_url=env.hub_core_base_url())
+def core_client(password_auth_client, ssl_context):
+    return flame_hub.CoreClient(
+        client=httpx.Client(auth=password_auth_client, base_url=env.hub_core_base_url(), verify=ssl_context)
+    )
 
 
 @pytest.fixture(scope="package")
-def storage_client(password_auth_client):
-    return flame_hub.StorageClient(auth=password_auth_client, base_url=env.hub_storage_base_url())
+def storage_client(password_auth_client, ssl_context):
+    return flame_hub.StorageClient(
+        client=httpx.Client(auth=password_auth_client, base_url=env.hub_storage_base_url(), verify=ssl_context)
+    )
 
 
 @pytest.fixture

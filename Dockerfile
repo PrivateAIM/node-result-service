@@ -21,10 +21,11 @@ COPY ./config/ ./config/
 COPY --from=builder /tmp/requirements.txt ./
 COPY pyproject.toml README.md ./
 COPY ./project/ ./project/
+COPY ./docker-entrypoint.sh ./
 
 RUN set -ex && \
-        addgroup -S nonroot && \
-        adduser -S nonroot -G nonroot && \
+        addgroup nonroot && \
+        adduser nonroot -G nonroot -s /bin/sh -D && \
         chown -R nonroot:nonroot /app
 
 RUN set -ex && \
@@ -35,7 +36,5 @@ RUN set -ex && \
 ENV PYTHONPATH=/app
 ENV PYTHONUNBUFFERED=1
 
-ENTRYPOINT [ "/usr/local/bin/python", "-m", "uvicorn", "project.main:app" ]
+ENTRYPOINT [ "/app/docker-entrypoint.sh" ]
 CMD [ "--host", "0.0.0.0", "--port", "8080", "--workers", "4" ]
-
-USER nonroot

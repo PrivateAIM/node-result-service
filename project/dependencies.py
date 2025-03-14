@@ -1,11 +1,13 @@
 import json
 import logging
+import ssl
 from functools import lru_cache
 from typing import Annotated
 
 import flame_hub.auth
 import httpx
 import peewee as pw
+import truststore
 from fastapi import Depends, HTTPException
 from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
 from httpx import HTTPError
@@ -112,19 +114,28 @@ def get_client_id(
         raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="JWT is malformed")
 
 
-def get_flame_hub_auth_flow(settings: Annotated[Settings, Depends(get_settings)]):
+@lru_cache
+def get_ssl_context():
+    # see https://www.python-httpx.org/advanced/ssl/#configuring-client-instances
+    return truststore.SSLContext(ssl.PROTOCOL_TLS_CLIENT)
+
+
+def get_flame_hub_auth_flow(
+    settings: Annotated[Settings, Depends(get_settings)],
+    ssl_context: Annotated[ssl.SSLContext, Depends(get_ssl_context)],
+):
     if settings.hub.auth.flow == AuthFlow.password:
         return flame_hub.auth.PasswordAuth(
             settings.hub.auth.username,
             settings.hub.auth.password,
-            base_url=str(settings.hub.auth_base_url),
+            client=httpx.Client(base_url=str(settings.hub.auth_base_url), verify=ssl_context),
         )
 
     if settings.hub.auth.flow == AuthFlow.robot:
         return flame_hub.auth.RobotAuth(
             settings.hub.auth.id,
             settings.hub.auth.secret,
-            base_url=str(settings.hub.auth_base_url),
+            client=httpx.Client(base_url=str(settings.hub.auth_base_url), verify=ssl_context),
         )
 
     raise NotImplementedError(f"unknown auth flow {settings.hub.auth.flow}")
@@ -136,10 +147,10 @@ def get_core_client(
         flame_hub.auth.RobotAuth | flame_hub.auth.PasswordAuth,
         Depends(get_flame_hub_auth_flow),
     ],
+    ssl_context: Annotated[ssl.SSLContext, Depends(get_ssl_context)],
 ):
     return flame_hub.CoreClient(
-        base_url=str(settings.hub.core_base_url),
-        auth=auth_flow,
+        client=httpx.Client(base_url=str(settings.hub.core_base_url), auth=auth_flow, verify=ssl_context)
     )
 
 
@@ -149,10 +160,10 @@ def get_storage_client(
         flame_hub.auth.RobotAuth | flame_hub.auth.PasswordAuth,
         Depends(get_flame_hub_auth_flow),
     ],
+    ssl_context: Annotated[ssl.SSLContext, Depends(get_ssl_context)],
 ):
     return flame_hub.StorageClient(
-        base_url=str(settings.hub.storage_base_url),
-        auth=auth_flow,
+        client=httpx.Client(base_url=str(settings.hub.storage_base_url), auth=auth_flow, verify=ssl_context)
     )
 
 

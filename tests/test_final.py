@@ -17,15 +17,12 @@ def test_200_submit_with_local_dp(test_client, rng, core_client, storage_client,
     assert eventually(_check_result_bucket_exists)
 
     # Send a valid numerical file
-    raw_value = 5.0
+    raw_value = rng.random()
     blob = str(raw_value).encode("utf-8")
     filename = "test_result.txt"
 
     # Set parameters for DP
-    form_data = {
-        "epsilon": "1.0",
-        "sensitivity": "1.0"
-    }
+    form_data = {"epsilon": "1.0", "sensitivity": "1.0"}
 
     r = test_client.put(
         "/final/localdp",
@@ -38,16 +35,15 @@ def test_200_submit_with_local_dp(test_client, rng, core_client, storage_client,
 
     # retrieve result and see if it returned a file with single number
     uploaded_files = core_client.find_analysis_bucket_files(
-        filter={"analysis_id": analysis_id, "type": "RESULT"}
+        filter={"analysis_id": analysis_id, "type": "RESULT"}, sort={"by": "created_at", "order": "descending"}
     )
 
-    if uploaded_files:
-        stored_file = uploaded_files[-1]  # Get the most recent file
-        stored_content = b''.join(storage_client.stream_bucket_file(stored_file.external_id))
-
-        if stored_content:
-            noisy_value = float(stored_content.decode("utf-8"))
-            assert noisy_value != raw_value, "Noisy value should be different from raw value!"
+    assert len(uploaded_files) > 0, "Hub should return at least one result file"
+    stored_file = uploaded_files[0]  # Get the most recent file
+    stored_content = next(storage_client.stream_bucket_file(stored_file.external_id))
+    assert stored_content != b"", "Result file is empty"
+    noisy_value = float(stored_content.decode("utf-8"))
+    assert noisy_value != raw_value, "Noisy value should be different from raw value!"
 
 
 def test_200_submit_to_upload(test_client, rng, core_client, analysis_id):

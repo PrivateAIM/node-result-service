@@ -2,21 +2,11 @@ import logging
 from typing import Annotated
 
 import flame_hub
-import opendp.prelude as dp
 from fastapi import APIRouter, Depends, UploadFile, HTTPException, Form
 from opendp.domains import atom_domain
 from opendp.measurements import make_laplace
 from opendp.metrics import absolute_distance
-from opendp.mod import enable_features
 from starlette import status
-
-# Enable floating point features in OpenDP
-enable_features("floating-point")
-
-logging.basicConfig(level=logging.DEBUG)  # Set log level to DEBUG
-logger = logging.getLogger()
-
-logger.info("✅ Logging enabled in test file")
 
 from project.dependencies import (
     get_client_id,
@@ -27,11 +17,6 @@ from project.dependencies import (
 router = APIRouter()
 logger = logging.getLogger(__name__)
 
-# Enable floating point features in OpenDP
-enable_features("floating-point")
-# Enable features in OpenDP
-dp.enable_features('contrib')
-
 
 @router.put(
     "/localdp",
@@ -39,13 +24,13 @@ dp.enable_features('contrib')
     summary="Upload final result with Local DP to Hub",
     operation_id="putFinalResultWithLocalDP",
 )
-async def submit_final_single_value_with_local_dp_query_result_to_hub(
-        client_id: Annotated[str, Depends(get_client_id)],
-        file: UploadFile,
-        core_client: Annotated[flame_hub.CoreClient, Depends(get_core_client)],
-        storage_client: Annotated[flame_hub.StorageClient, Depends(get_storage_client)],
-        epsilon: float = Form(...),
-        sensitivity: float = Form(...),
+async def submit_final_single_value_with_local_dp_result_to_hub(
+    client_id: Annotated[str, Depends(get_client_id)],
+    file: UploadFile,
+    core_client: Annotated[flame_hub.CoreClient, Depends(get_core_client)],
+    storage_client: Annotated[flame_hub.StorageClient, Depends(get_storage_client)],
+    epsilon: Annotated[float, Form(...)],
+    sensitivity: Annotated[float, Form(...)],
 ):
     """Upload a file as a final result with Local DP to the FLAME Hub.
     Ensures only the noisy value is stored. Returns 204 on success.
@@ -62,11 +47,7 @@ async def submit_final_single_value_with_local_dp_query_result_to_hub(
 
     # Apply Laplace mechanism for Local DP
     scale = sensitivity / epsilon  # Laplace scale parameter
-    laplace_mech = make_laplace(
-        input_domain=atom_domain(T=float),
-        input_metric=absolute_distance(T=float),
-        scale=scale
-    )
+    laplace_mech = make_laplace(input_domain=atom_domain(T=float), input_metric=absolute_distance(T=float), scale=scale)
     noisy_value = laplace_mech(raw_value)
 
     noisy_file_content = str(noisy_value).encode("utf-8")
@@ -110,10 +91,10 @@ async def submit_final_single_value_with_local_dp_query_result_to_hub(
     operation_id="putFinalResult",
 )
 async def submit_final_result_to_hub(
-        client_id: Annotated[str, Depends(get_client_id)],
-        file: UploadFile,
-        core_client: Annotated[flame_hub.CoreClient, Depends(get_core_client)],
-        storage_client: Annotated[flame_hub.StorageClient, Depends(get_storage_client)],
+    client_id: Annotated[str, Depends(get_client_id)],
+    file: UploadFile,
+    core_client: Annotated[flame_hub.CoreClient, Depends(get_core_client)],
+    storage_client: Annotated[flame_hub.StorageClient, Depends(get_storage_client)],
 ):
     """Upload a file as a final result to the FLAME Hub.
     Returns a 204 on success."""

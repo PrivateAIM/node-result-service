@@ -46,15 +46,11 @@ def test_200_submit_with_local_dp(test_client, rng, core_client, storage_client,
     assert noisy_value != raw_value, "Noisy value should be different from raw value!"
 
 
-def test_200_submit_to_upload(test_client, rng, core_client, analysis_id):
+def test_200_submit_to_upload(test_client, rng, core_client, storage_client, analysis_id):
     def _check_result_bucket_exists():
         return core_client.find_analysis_buckets(filter={"analysis_id": analysis_id, "type": "RESULT"})
 
     assert eventually(_check_result_bucket_exists)
-
-    analysis_file_count_old = len(
-        core_client.find_analysis_bucket_files(filter={"analysis_id": analysis_id, "type": "RESULT"})
-    )
 
     blob = next_random_bytes(rng)
     r = test_client.put(
@@ -65,11 +61,19 @@ def test_200_submit_to_upload(test_client, rng, core_client, analysis_id):
 
     assert r.status_code == status.HTTP_204_NO_CONTENT
 
-    analysis_file_count_new = len(
-        core_client.find_analysis_bucket_files(filter={"analysis_id": analysis_id, "type": "RESULT"})
+    analysis_bucket_result_files = core_client.find_analysis_bucket_files(
+        filter={"analysis_id": analysis_id, "type": "RESULT"}, sort={"by": "created_at", "order": "descending"}
     )
 
-    assert analysis_file_count_new > analysis_file_count_old
+    assert len(analysis_bucket_result_files) > 0, "Hub should return at least one result file"
+
+    # get most recent
+    analysis_bucket_result_file = analysis_bucket_result_files[0]
+    # retrieve content
+    result_file_content = next(storage_client.stream_bucket_file(analysis_bucket_result_file.external_id))
+
+    # check file contents
+    assert result_file_content == blob, "Result file has incorrect content"
 
 
 def test_404_submit_invalid_id(test_client, rng):

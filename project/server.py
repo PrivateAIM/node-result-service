@@ -8,6 +8,7 @@ from pydantic import BaseModel
 from starlette import status
 
 from project.routers import final, intermediate, local
+from opendp.mod import enable_features
 
 _app: FastAPI | None = None
 
@@ -50,6 +51,11 @@ async def lifespan(_: FastAPI):
         log_config = json.load(f)
 
     logging.config.dictConfig(log_config)
+
+    # Enable floating point features in OpenDP
+    enable_features("floating-point")
+    # Enable features in OpenDP
+    enable_features("contrib")
 
     yield
 

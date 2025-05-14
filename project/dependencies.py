@@ -114,6 +114,25 @@ def get_client_id(
         raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="JWT is malformed")
 
 
+ProxyMount = dict[str, httpx.HTTPTransport] | None
+
+
+def get_proxy_mounts(settings: Annotated[Settings, Depends(get_settings)]):
+    proxy = settings.proxy
+    proxy_mounts = {}
+
+    if proxy.http_url is not None:
+        proxy_mounts["http://"] = httpx.HTTPTransport(proxy=proxy.http_url)
+
+    if proxy.https_url is not None:
+        proxy_mounts["https://"] = httpx.HTTPTransport(proxy=proxy.https_url)
+
+    if len(proxy_mounts) == 0:
+        return None
+
+    return proxy_mounts
+
+
 @lru_cache
 def get_ssl_context():
     # see https://www.python-httpx.org/advanced/ssl/#configuring-client-instances
@@ -123,19 +142,20 @@ def get_ssl_context():
 def get_flame_hub_auth_flow(
     settings: Annotated[Settings, Depends(get_settings)],
     ssl_context: Annotated[ssl.SSLContext, Depends(get_ssl_context)],
+    proxy_mounts: Annotated[ProxyMount, Depends(get_proxy_mounts)],
 ):
     if settings.hub.auth.flow == AuthFlow.password:
         return flame_hub.auth.PasswordAuth(
             settings.hub.auth.username,
             settings.hub.auth.password,
-            client=httpx.Client(base_url=str(settings.hub.auth_base_url), verify=ssl_context),
+            client=httpx.Client(base_url=str(settings.hub.auth_base_url), verify=ssl_context, mounts=proxy_mounts),
         )
 
     if settings.hub.auth.flow == AuthFlow.robot:
         return flame_hub.auth.RobotAuth(
             settings.hub.auth.id,
             settings.hub.auth.secret,
-            client=httpx.Client(base_url=str(settings.hub.auth_base_url), verify=ssl_context),
+            client=httpx.Client(base_url=str(settings.hub.auth_base_url), verify=ssl_context, mounts=proxy_mounts),
         )
 
     raise NotImplementedError(f"unknown auth flow {settings.hub.auth.flow}")
@@ -148,9 +168,12 @@ def get_core_client(
         Depends(get_flame_hub_auth_flow),
     ],
     ssl_context: Annotated[ssl.SSLContext, Depends(get_ssl_context)],
+    proxy_mounts: Annotated[ProxyMount, Depends(get_proxy_mounts)],
 ):
     return flame_hub.CoreClient(
-        client=httpx.Client(base_url=str(settings.hub.core_base_url), auth=auth_flow, verify=ssl_context)
+        client=httpx.Client(
+            base_url=str(settings.hub.core_base_url), auth=auth_flow, verify=ssl_context, mounts=proxy_mounts
+        )
     )
 
 
@@ -161,9 +184,12 @@ def get_storage_client(
         Depends(get_flame_hub_auth_flow),
     ],
     ssl_context: Annotated[ssl.SSLContext, Depends(get_ssl_context)],
+    proxy_mounts: Annotated[ProxyMount, Depends(get_proxy_mounts)],
 ):
     return flame_hub.StorageClient(
-        client=httpx.Client(base_url=str(settings.hub.storage_base_url), auth=auth_flow, verify=ssl_context)
+        client=httpx.Client(
+            base_url=str(settings.hub.storage_base_url), auth=auth_flow, verify=ssl_context, mounts=proxy_mounts
+        )
     )
 
 

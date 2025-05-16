@@ -121,11 +121,22 @@ def get_proxy_mounts(settings: Annotated[Settings, Depends(get_settings)]):
     proxy = settings.proxy
     proxy_mounts = {}
 
-    if proxy.http_url is not None:
-        proxy_mounts["http://"] = httpx.HTTPTransport(proxy=proxy.http_url)
+    http_proxy_set = proxy.http_url is not None
+    https_proxy_set = proxy.https_url is not None
 
-    if proxy.https_url is not None:
-        proxy_mounts["https://"] = httpx.HTTPTransport(proxy=proxy.https_url)
+    if http_proxy_set and https_proxy_set:
+        # if two urls are provided, set them for each mode of transport individually
+        proxy_mounts["http://"] = httpx.HTTPTransport(proxy=str(proxy.http_url))
+        proxy_mounts["https://"] = httpx.HTTPTransport(proxy=str(proxy.https_url))
+    elif not http_proxy_set and not https_proxy_set:
+        # if no urls are provided, do nothing
+        pass
+    else:
+        # if one url is provided, use it for both modes of transport
+        proxy_url = str(proxy.http_url) if http_proxy_set else str(proxy.https_url)
+
+        proxy_mounts["http://"] = httpx.HTTPTransport(proxy=proxy_url)
+        proxy_mounts["https://"] = httpx.HTTPTransport(proxy=proxy_url)
 
     if len(proxy_mounts) == 0:
         return None

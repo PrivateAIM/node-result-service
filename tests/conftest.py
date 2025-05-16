@@ -218,7 +218,7 @@ def project_id(core_client):
 @pytest.fixture
 def analysis_id(core_client, project_id):
     analysis_name = next_prefixed_name()
-    analysis = core_client.create_analysis(analysis_name, project_id)
+    analysis = core_client.create_analysis(project_id, analysis_name)
 
     # check that analysis was created
     assert analysis.name == analysis_name

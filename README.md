@@ -96,6 +96,8 @@ The tests expect that robot **and** password credentials are provided in order t
 Set `HUB__AUTH__FLOW` to `robot`, but make sure to not only set `HUB__AUTH__ID` and `HUB__AUTH__SECRET`, but also
 `HUB__AUTH__USERNAME` and `HUB__AUTH__PASSWORD`.
 
+For testing against a forward proxy, [check the README in the `proxy` directory](./proxy/README.md).
+
 # License
 
 The FLAME Node Result Service is released under the Apache 2.0 license.

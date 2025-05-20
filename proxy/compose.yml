@@ -1,0 +1,6 @@
+services:
+
+  forward-proxy:
+    image: ghcr.io/privateaim/nginx-forward-proxy:${NGINX_FORWARD_PROXY_VERSION}
+    ports:
+      - "3128:3128"

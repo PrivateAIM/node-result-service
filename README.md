@@ -57,11 +57,14 @@ The following table shows all available configuration options.
 | CRYPTO__PROVIDER              | Provider for ECDH private key (`raw` or `file`)                                     |                                |       x        |
 | CRYPTO__ECDH_PRIVATE_KEY      | Contents of ECDH private key file                                                   |                                | x<sup>3)</sup> |
 | CRYPTO__ECDH_PRIVATE_KEY_PATH | Path to ECDH private key file                                                       |                                | x<sup>4)</sup> |
+| PROXY__HTTP_URL               | URL of HTTP proxy<sup>5)</sup>                                                      |                                |                |
+| PROXY__HTTPS_URL              | URL of HTTPS proxy<sup>5)</sup>                                                     |                                |                |
 
 <sup>1)</sup> Only if `HUB__AUTH__FLOW` is set to `password`  
 <sup>2)</sup> Only if `HUB__AUTH__FLOW` is set to `robot`  
 <sup>3)</sup> Only if `CRYPTO__PROVIDER` is set to `raw`  
-<sup>4)</sup> Only if `CRYPTO__PROVIDER` is set to `file`
+<sup>4)</sup> Only if `CRYPTO__PROVIDER` is set to `file`  
+<sup>5)</sup> If only one of the two URLs is set, it will be used for both HTTP and HTTPS transport
 
 ## Note on running tests
 
@@ -92,6 +95,8 @@ To run **all** tests, append `-m "live or not live"`.
 The tests expect that robot **and** password credentials are provided in order to test both authentication flows.
 Set `HUB__AUTH__FLOW` to `robot`, but make sure to not only set `HUB__AUTH__ID` and `HUB__AUTH__SECRET`, but also
 `HUB__AUTH__USERNAME` and `HUB__AUTH__PASSWORD`.
+
+For testing against a forward proxy, [check the README in the `proxy` directory](./proxy/README.md).
 
 # License
 

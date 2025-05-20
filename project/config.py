@@ -2,7 +2,7 @@ from enum import Enum
 from pathlib import Path
 from typing import Literal, Annotated, Union
 
-from pydantic import BaseModel, HttpUrl, ConfigDict, Field
+from pydantic import BaseModel, HttpUrl, ConfigDict, Field, AnyHttpUrl
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 
@@ -78,12 +78,18 @@ class FileCryptoConfig(BaseModel):
     ecdh_private_key_path: Path
 
 
+class ProxyConfig(BaseModel):
+    http_url: AnyHttpUrl | None = None
+    https_url: AnyHttpUrl | None = None
+
+
 class Settings(BaseSettings):
     hub: HubConfig
     minio: MinioBucketConfig
     oidc: OIDCConfig
     postgres: PostgresConfig
     crypto: Annotated[Union[RawCryptoConfig, FileCryptoConfig], Field(discriminator="provider")]
+    proxy: Annotated[ProxyConfig, Field(default_factory=ProxyConfig)]
 
     model_config = SettingsConfigDict(
         frozen=True,

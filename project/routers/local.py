@@ -291,8 +291,6 @@ async def retrieve_intermediate_result_from_local(
         media_type=response.headers.get("Content-Type", "application/octet-stream"),
     )
 
-# --- NEUER ENDPOINT: Trainiere Modell mit Differential Privacy ---
-
 @router.post(
     "/train-private",
     summary="Train model with Differential Privacy using Opacus and fixed budget",

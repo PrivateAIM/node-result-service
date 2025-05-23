@@ -83,34 +83,37 @@ def find_noise_multiplier(
     batch_size: int
 ) -> float:
     """
-    Finds the smallest noise_multiplier that meets the target budget ε for a given sample_rate and epochs.
-    Uses the official RDPAccountant API from Opacus.
+    Perform a binary search to determine the smallest noise_multiplier that achieves
+    the desired epsilon value for differential privacy given the dataset and training setup.
     """
-    import numpy as np
-
-    steps = (dataset_size // batch_size) * epochs
-    low = 0.5
-    high = 10.0
-    tolerance = 0.01
+    steps = (dataset_size // batch_size) * epochs  # Total number of training steps
+    low = 0.5  # Initial lower bound for noise
+    high = 10.0  # Initial upper bound
+    tolerance = 0.01  # Acceptable tolerance in search
     best_noise = None
 
+    # Binary search loop to find a suitable noise multiplier
     while high - low > tolerance:
         mid = (low + high) / 2
         accountant = RDPAccountant()
 
+        # Simulate training steps with current noise level
         for _ in range(steps):
             accountant.step(noise_multiplier=mid, sample_rate=sample_rate)
 
         eps = accountant.get_epsilon(delta=target_delta)
 
+        # Adjust search range based on epsilon result
         if eps > target_epsilon:
             low = mid
         else:
             best_noise = mid
             high = mid
 
+    # Check if a suitable noise multiplier was found
     if best_noise is None:
-        raise ValueError("No suitable noise_multiplier found.")
+        eps_high = accountant.get_epsilon(delta=target_delta)
+        raise ValueError(f"No valid noise_multiplier found. ε at max noise ({high}): {eps_high}")
 
     return round(best_noise, 4)
 
@@ -293,43 +296,52 @@ async def retrieve_intermediate_result_from_local(
 
 @router.post(
     "/train-private",
-    summary="Train model with Differential Privacy using Opacus and fixed budget",
+    summary="Train model with Differential Privacy using fixed ε-budget",
     operation_id="trainWithDifferentialPrivacyBudget",
 )
 async def train_with_differential_privacy(
-    model_file: Annotated[UploadFile, File(...)],
-    dataset_file: Annotated[UploadFile, File(...)],
-    target_epsilon: Annotated[float, Form(...)],
-    max_grad_norm: Annotated[float, Form(...)],
-    epochs: Annotated[int, Form(ge=1)] = 5,
+    model_file: Annotated[UploadFile, File(...)],  # Uploaded PyTorch model weights
+    dataset_file: Annotated[UploadFile, File(...)],  # Uploaded CSV dataset
+    target_epsilon: Annotated[float, Form(...)],  # Desired privacy budget ε
+    max_grad_norm: Annotated[float, Form(...)],  # Maximum gradient norm for DP-SGD clipping
+    noise_multiplier: Annotated[float | None, Form()] = None,  # Optional DP noise multiplier
+    batch_size: Annotated[int, Form()] = 32,  # Mini-batch size
 ):
     """
-    Trains an uploaded PyTorch model with differential privacy
-    based on a fixed privacy budget (ε).
+    Train a PyTorch model with differential privacy using Opacus.
+    Training runs until a fixed ε (privacy budget) is reached or a max number of epochs is hit.
     """
-
     try:
-        # Define model structure
+        # Ensure privacy parameters and batch size are valid
+        if target_epsilon <= 0:
+            raise HTTPException(400, detail="target_epsilon must be greater than 0.")
+
+        if batch_size <= 0:
+            raise HTTPException(400, detail="batch_size must be greater than 0.")
+
+        # Define a simple fully-connected model as an example
         class SimpleNet(nn.Module):
             def __init__(self):
                 super().__init__()
-                self.fc = nn.Linear(4, 2)
+                self.fc = nn.Linear(4, 2)  # Expect 4 input features, output 2 classes
 
             def forward(self, x):
                 return self.fc(x)
 
-        # Load model
+        # Load model state dictionary from uploaded file
         model = SimpleNet()
-        model_bytes = await model_file.read()
-        buffer = BytesIO(model_bytes)
-        state_dict = torch.load(buffer)
-        model.load_state_dict(state_dict)
-        model.train()
+        state_dict = torch.load(BytesIO(await model_file.read()))
+        try:
+            model.load_state_dict(state_dict)
+        except RuntimeError as e:
+            raise HTTPException(400, detail=f"Model structure mismatch: {str(e)}")
+        model.train()  # Set model to training mode
 
-        # Read CSV data
+        # Read and decode uploaded dataset (assumed to be CSV with 4 features + 1 label)
         dataset_bytes = await dataset_file.read()
         lines = dataset_bytes.decode("utf-8-sig").splitlines()
 
+        # Handle CSVs that use semicolons instead of commas
         if ";" in lines[0]:
             lines = [line.replace(";", ",") for line in lines]
 
@@ -339,42 +351,48 @@ async def train_with_differential_privacy(
                 values = [float(val) for val in line.strip().split(",")]
                 parsed_data.append(values)
             except ValueError:
-                continue
+                continue  # Skip lines with invalid format
 
         if not parsed_data:
-            raise HTTPException(status_code=400, detail="Keine gültigen Datenzeilen im Dataset.")
+            raise HTTPException(400, detail="Dataset contains no valid rows.")
 
+        # Convert parsed data to PyTorch tensors
         data = torch.tensor(parsed_data)
-
         if data.shape[1] != 5:
-            raise HTTPException(status_code=400, detail="Dataset muss 4 Features + 1 Label enthalten.")
+            raise HTTPException(400, detail="Each row must have 4 features + 1 label.")
 
-        x = data[:, :-1]
-        y = data[:, -1].long()
-
+        x = data[:, :-1]  # Features
+        y = data[:, -1].long()  # Labels
         dataset = TensorDataset(x, y)
-        batch_size = 32
         dataloader = DataLoader(dataset, batch_size=batch_size, shuffle=True)
 
-        # Optimierer
+        # Define a basic optimizer and loss function
         optimizer = optim.SGD(model.parameters(), lr=0.01)
+        loss_fn = nn.CrossEntropyLoss()
 
-        # Calculate noise
-        delta = 1e-5
+        # Differential privacy configuration
+        delta = 1e-5  # Typical choice for delta in DP (usually 1/n)
         sample_rate = batch_size / len(dataset)
 
-        noise_multiplier = find_noise_multiplier(
-            target_epsilon=target_epsilon,
-            target_delta=delta,
-            sample_rate=sample_rate,
-            epochs=epochs,
-            dataset_size=len(dataset),
-            batch_size=batch_size
-        )
+        auto_estimated = False
+        if noise_multiplier is None:
+            auto_estimated = True
+            try:
+                # Estimate number of epochs based on target epsilon
+                estimate_epochs = max(20, int(100 / target_epsilon))
+                noise_multiplier = find_noise_multiplier(
+                    target_epsilon=target_epsilon,
+                    target_delta=delta,
+                    sample_rate=sample_rate,
+                    epochs=estimate_epochs,
+                    dataset_size=len(dataset),
+                    batch_size=batch_size
+                )
+                logger.info(f"Automatically estimated noise_multiplier: {noise_multiplier}")
+            except Exception as e:
+                raise HTTPException(500, detail=f"Failed to estimate noise_multiplier: {str(e)}")
 
-        logger.info(f"Training mit ε={target_epsilon}, δ={delta}, noise_multiplier={noise_multiplier}")
-
-        # Activate Privacy Engine
+        # Initialize the PrivacyEngine and make the training loop private
         privacy_engine = PrivacyEngine()
         model, optimizer, dataloader = privacy_engine.make_private(
             module=model,
@@ -384,25 +402,42 @@ async def train_with_differential_privacy(
             max_grad_norm=max_grad_norm,
         )
 
-        # Training
-        loss_fn = nn.CrossEntropyLoss()
-        for epoch in range(epochs):
+        # Training loop with early stopping when epsilon budget is spent
+        epsilon_spent = 0.0
+        epoch = 0
+        max_epochs = 500  # Safety cap to prevent infinite loops
+
+        while epsilon_spent < target_epsilon and epoch < max_epochs:
             for batch_x, batch_y in dataloader:
                 optimizer.zero_grad()
-                outputs = model(batch_x)
-                loss = loss_fn(outputs, batch_y)
+                output = model(batch_x)
+                loss = loss_fn(output, batch_y)
                 loss.backward()
                 optimizer.step()
 
-        epsilon_spent = privacy_engine.get_epsilon(delta=delta)
+            epoch += 1
+            epsilon_spent = privacy_engine.get_epsilon(delta=delta)
+            logger.info(f"Epoch {epoch} completed – ε spent: {epsilon_spent:.4f}")
 
+            if epsilon_spent >= target_epsilon:
+                logger.info(f"Training stopped after {epoch} epochs – target ε={target_epsilon} reached.")
+                break
+
+        # Return final training metadata to the client
         return {
-            "message": "Model trained under DP constraints",
+            "message": "Model trained under privacy budget",
             "target_epsilon": target_epsilon,
-            "epsilon_spent": epsilon_spent,
-            "noise_multiplier_used": noise_multiplier,
+            "epsilon_spent": round(epsilon_spent, 4),
+            "noise_multiplier": noise_multiplier,
+            "epochs_used": epoch,
+            "delta": delta,
+            "sample_rate": round(sample_rate, 6),
+            "auto_estimated_noise_multiplier": auto_estimated,
         }
 
     except Exception as e:
-        logger.exception("Training failed")
-        raise HTTPException(status_code=500, detail=f"Training failed: {str(e)}")
+        logger.exception("Differentially private training failed")
+        raise HTTPException(
+            status_code=500,
+            detail=f"Training failed due to internal error: {str(e)}",
+        )

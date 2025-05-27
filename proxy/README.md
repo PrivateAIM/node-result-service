@@ -1,4 +1,4 @@
-This directory contains the setup for a simple forward proxy based on nginx.
+This directory contains the setup for a simple forward proxy based on OpenResty.
 To run tests using this forward proxy, run `docker compose up -d` in this directory.
 This will make a forward proxy available on port 3128.
 

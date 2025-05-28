@@ -2,5 +2,8 @@ services:
 
   forward-proxy:
     image: ghcr.io/privateaim/openresty-forward-proxy:${OPENRESTY_FORWARD_PROXY_VERSION}
+    environment:
+      - PROXY_USERNAME=foobar
+      - PROXY_PASSWORD=s3cr3t
     ports:
       - "3128:3128"

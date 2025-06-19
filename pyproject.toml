@@ -1,6 +1,6 @@
 [project]
 name = "flame-result-service"
-version = "0.1.1"
+version = "0.1.2"
 description = "Service for handling intermediate files and submitting result files to the FLAME Hub."
 authors = [
     {name = "Maximilian Jugl", email="Maximilian.Jugl@medizin.uni-leipzig.de"}

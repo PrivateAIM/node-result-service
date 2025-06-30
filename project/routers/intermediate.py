@@ -27,6 +27,28 @@ class IntermediateUploadResponse(BaseModel):
     object_id: uuid.UUID
 
 
+def get_remote_node_public_key(core_client: flame_hub.CoreClient, remote_node_id: str):
+    # fetch remote node
+    remote_node = core_client.get_node(remote_node_id)
+
+    # Check if a node with this id exists.
+    if remote_node is None:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail=f"Remote node with ID {remote_node_id} does not exist.",
+        )
+
+    # check if it has a public key assigned to it
+    if remote_node.public_key is None:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail=f"Remote node with ID {remote_node_id} does not provide a public key",
+        )
+
+    # construct public key
+    return crypto.load_ecdh_public_key_from_hex_string(remote_node.public_key)
+
+
 @router.put(
     "/",
     response_model=IntermediateUploadResponse,
@@ -61,18 +83,7 @@ async def submit_intermediate_result_to_hub(
 
     # encryption requested
     if remote_node_id is not None:
-        # fetch remote node
-        remote_node = core_client.get_node(remote_node_id)
-
-        # check if it has a public key assigned to it
-        if remote_node.public_key is None:
-            raise HTTPException(
-                status_code=status.HTTP_400_BAD_REQUEST,
-                detail=f"Remote node with ID {remote_node_id} does not provide a public key",
-            )
-
-        # construct public key
-        remote_public_key = crypto.load_ecdh_public_key_from_hex_string(remote_node.public_key)
+        remote_public_key = get_remote_node_public_key(core_client, remote_node_id)
 
         # encrypt result file
         result_file = crypto.encrypt_default(private_key, remote_public_key, result_file)

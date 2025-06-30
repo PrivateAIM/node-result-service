@@ -111,7 +111,7 @@ async def submit_intermediate_result_to_hub(
 
 @router.get(
     "/{object_id}",
-    summary="Get intermediate result as file to Hub",
+    summary="Get intermediate result as file from Hub",
     operation_id="getIntermediateResult",
     # client id is not actually used here but required for auth. having this
     # as a path dependency makes pycharm stop complaining about unused params.

@@ -21,6 +21,7 @@ from tests.common import env
 from tests.common.auth import get_oid_test_jwk, get_test_ecdh_keypair
 from tests.common.helpers import (
     next_prefixed_name,
+    eventually,
 )
 
 
@@ -238,6 +239,15 @@ def analysis_id(core_client, project_id):
 
     # check that analysis is no longer found
     assert core_client.get_analysis(analysis.id) is None
+
+
+@pytest.fixture()
+def check_buckets_exist(analysis_id, core_client):
+    def _check_buckets_exist():
+        # TODO: do not hard code amount of buckets per analysis
+        return len(core_client.find_analysis_buckets(filter={"analysis_id": analysis_id})) == 3
+
+    assert eventually(_check_buckets_exist)
 
 
 @pytest.fixture

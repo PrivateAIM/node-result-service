@@ -14,7 +14,7 @@ EllipticCurveKeyPair = tuple[ec.EllipticCurvePrivateKey, ec.EllipticCurvePublicK
 
 # we only do ec in this household
 # noinspection PyTypeChecker
-def load_ecdh_public_key(public_key_bytes: bytes) -> ec.EllipticCurvePrivateKey:
+def load_ecdh_public_key(public_key_bytes: bytes) -> ec.EllipticCurvePublicKey:
     """Load an ECDH public key from bytes."""
     return serialization.load_pem_public_key(public_key_bytes)
 

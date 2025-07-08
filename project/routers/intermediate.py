@@ -3,6 +3,7 @@ import uuid
 from typing import Annotated
 
 import flame_hub
+from cryptography.exceptions import InvalidTag
 from cryptography.hazmat.primitives.asymmetric import ec
 from fastapi import APIRouter, UploadFile, Depends, HTTPException, File, Form
 from pydantic import BaseModel, HttpUrl
@@ -25,6 +26,28 @@ logger = logging.getLogger(__name__)
 class IntermediateUploadResponse(BaseModel):
     url: HttpUrl
     object_id: uuid.UUID
+
+
+def get_remote_node_public_key(core_client: flame_hub.CoreClient, remote_node_id: str):
+    # fetch remote node
+    remote_node = core_client.get_node(remote_node_id)
+
+    # Check if a node with this id exists.
+    if remote_node is None:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail=f"Remote node with ID {remote_node_id} does not exist.",
+        )
+
+    # check if it has a public key assigned to it
+    if remote_node.public_key is None:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail=f"Remote node with ID {remote_node_id} does not provide a public key",
+        )
+
+    # construct public key
+    return crypto.load_ecdh_public_key_from_hex_string(remote_node.public_key)
 
 
 @router.put(
@@ -61,18 +84,7 @@ async def submit_intermediate_result_to_hub(
 
     # encryption requested
     if remote_node_id is not None:
-        # fetch remote node
-        remote_node = core_client.get_node(remote_node_id)
-
-        # check if it has a public key assigned to it
-        if remote_node.public_key is None:
-            raise HTTPException(
-                status_code=status.HTTP_400_BAD_REQUEST,
-                detail=f"Remote node with ID {remote_node_id} does not provide a public key",
-            )
-
-        # construct public key
-        remote_public_key = crypto.load_ecdh_public_key_from_hex_string(remote_node.public_key)
+        remote_public_key = get_remote_node_public_key(core_client, remote_node_id)
 
         # encrypt result file
         result_file = crypto.encrypt_default(private_key, remote_public_key, result_file)
@@ -111,7 +123,7 @@ async def submit_intermediate_result_to_hub(
 
 @router.get(
     "/{object_id}",
-    summary="Get intermediate result as file to Hub",
+    summary="Get intermediate result as file from Hub",
     operation_id="getIntermediateResult",
     # client id is not actually used here but required for auth. having this
     # as a path dependency makes pycharm stop complaining about unused params.
@@ -119,7 +131,10 @@ async def submit_intermediate_result_to_hub(
 )
 async def retrieve_intermediate_result_from_hub(
     object_id: uuid.UUID,
+    core_client: Annotated[flame_hub.CoreClient, Depends(get_core_client)],
     storage_client: Annotated[flame_hub.StorageClient, Depends(get_storage_client)],
+    private_key: Annotated[ec.EllipticCurvePrivateKey, Depends(get_ecdh_private_key)],
+    node_id: str | None = None,
 ):
     """Get an intermediate result as file from the FLAME Hub."""
     if storage_client.get_bucket_file(object_id) is None:
@@ -128,8 +143,26 @@ async def retrieve_intermediate_result_from_hub(
             detail=f"Object with ID {object_id} does not exist",
         )
 
+    # Check if the file can be decrypted with the retrieved remote node id.
+    if node_id is not None:
+        first_bytes = next(storage_client.stream_bucket_file(object_id))
+        remote_node_public_key = get_remote_node_public_key(core_client, node_id)
+        try:
+            crypto.decrypt_default(private_key, remote_node_public_key, first_bytes)
+        except InvalidTag:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail=f"File with ID {object_id} cannot be decrypted under the assumption that the file was encrypted "
+                f"by node {node_id} for this node.",
+            )
+
     async def _stream_bucket_file():
-        for b in storage_client.stream_bucket_file(object_id):
-            yield b
+        stream = storage_client.stream_bucket_file(object_id)
+        if node_id is None:
+            for b in stream:
+                yield b
+        else:
+            for b in stream:
+                yield crypto.decrypt_default(private_key, remote_node_public_key, b)
 
     return StreamingResponse(_stream_bucket_file())

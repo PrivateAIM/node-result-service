@@ -4,18 +4,13 @@ import pytest
 from starlette import status
 
 from tests.common.auth import issue_client_access_token, BearerAuth
-from tests.common.helpers import next_random_bytes, eventually
+from tests.common.helpers import next_random_bytes
 from tests.common.rest import wrap_bytes_for_request, detail_of
 
 pytestmark = pytest.mark.live
 
 
-def test_200_submit_with_local_dp(test_client, rng, core_client, storage_client, analysis_id):
-    def _check_result_bucket_exists():
-        return core_client.find_analysis_buckets(filter={"analysis_id": analysis_id, "type": "RESULT"})
-
-    assert eventually(_check_result_bucket_exists)
-
+def test_200_submit_with_local_dp(test_client, rng, core_client, storage_client, analysis_id, check_buckets_exist):
     # Send a valid numerical file
     raw_value = rng.random()
     blob = str(raw_value).encode("utf-8")
@@ -46,12 +41,7 @@ def test_200_submit_with_local_dp(test_client, rng, core_client, storage_client,
     assert noisy_value != raw_value, "Noisy value should be different from raw value!"
 
 
-def test_200_submit_to_upload(test_client, rng, core_client, storage_client, analysis_id):
-    def _check_result_bucket_exists():
-        return core_client.find_analysis_buckets(filter={"analysis_id": analysis_id, "type": "RESULT"})
-
-    assert eventually(_check_result_bucket_exists)
-
+def test_200_submit_to_upload(test_client, rng, core_client, storage_client, analysis_id, check_buckets_exist):
     blob = next_random_bytes(rng)
     r = test_client.put(
         "/final",

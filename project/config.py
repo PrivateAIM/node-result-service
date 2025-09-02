@@ -88,6 +88,7 @@ class Settings(BaseSettings):
     postgres: PostgresConfig
     crypto: Annotated[Union[RawCryptoConfig, FileCryptoConfig], Field(discriminator="provider")]
     proxy: Annotated[ProxyConfig, Field(default_factory=ProxyConfig)]
+    extra_ca_certs: Path | None = None
 
     model_config = SettingsConfigDict(
         frozen=True,

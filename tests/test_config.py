@@ -1,7 +1,8 @@
-from project.config import FileCryptoConfig, RawCryptoConfig
+from project.config import FileCryptoConfig, RawCryptoConfig, Settings
 from project.dependencies import (
     get_ecdh_private_key_from_path,
     get_ecdh_private_key_from_bytes,
+    get_ssl_context,
 )
 from tests.common.auth import get_test_ecdh_keypair_paths
 
@@ -60,3 +61,9 @@ def test_ecdh_private_key_from_escaped_file_contents():
     )
 
     _ = get_ecdh_private_key_from_bytes(raw_crypto)
+
+
+def test_extra_ca_certs():
+    ssl_ctx = get_ssl_context(Settings())
+    # Access protected _ctx member since get_ca_certs() is not implemented for truststore.SSLContext classes.
+    assert len(ssl_ctx._ctx.get_ca_certs()) == 1

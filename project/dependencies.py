@@ -145,9 +145,14 @@ def get_proxy_mounts(settings: Annotated[Settings, Depends(get_settings)]):
 
 
 @lru_cache
-def get_ssl_context():
+def get_ssl_context(
+    settings: Annotated[Settings, Depends(get_settings)],
+):
     # see https://www.python-httpx.org/advanced/ssl/#configuring-client-instances
-    return truststore.SSLContext(ssl.PROTOCOL_TLS_CLIENT)
+    ctx = truststore.SSLContext(ssl.PROTOCOL_TLS_CLIENT)
+    if settings.extra_ca_certs is not None:
+        ctx.load_verify_locations(cafile=settings.extra_ca_certs)
+    return ctx
 
 
 def get_flame_hub_auth_flow(

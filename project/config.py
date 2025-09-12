@@ -6,26 +6,26 @@ from pydantic import BaseModel, HttpUrl, ConfigDict, Field, AnyHttpUrl
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 
-class MinioConnection(BaseModel):
+class FrozenBaseModel(BaseModel):
+    model_config = ConfigDict(frozen=True)
+
+
+class MinioConnection(FrozenBaseModel):
     endpoint: str
     access_key: str
     secret_key: str
     region: str = "us-east-1"
     use_ssl: bool = True
 
-    model_config = ConfigDict(frozen=True)
-
 
 class MinioBucketConfig(MinioConnection):
     bucket: str
 
 
-class OIDCConfig(BaseModel):
+class OIDCConfig(FrozenBaseModel):
     certs_url: HttpUrl
     client_id_claim_name: str = "client_id"
     skip_jwt_validation: bool = False
-
-    model_config = ConfigDict(frozen=True)
 
 
 class AuthFlow(str, Enum):
@@ -33,29 +33,27 @@ class AuthFlow(str, Enum):
     robot = "robot"
 
 
-class PasswordAuthConfig(BaseModel):
+class PasswordAuthConfig(FrozenBaseModel):
     flow: Literal[AuthFlow.password]
     username: str
     password: str
 
 
-class RobotAuthConfig(BaseModel):
+class RobotAuthConfig(FrozenBaseModel):
     flow: Literal[AuthFlow.robot]
     id: str
     secret: str
 
 
-class HubConfig(BaseModel):
+class HubConfig(FrozenBaseModel):
     core_base_url: HttpUrl = "https://core.privateaim.net"
     auth_base_url: HttpUrl = "https://auth.privateaim.net"
     storage_base_url: HttpUrl = "https://storage.privateaim.net"
 
     auth: Annotated[Union[RobotAuthConfig, PasswordAuthConfig], Field(discriminator="flow")]
 
-    model_config = ConfigDict(frozen=True)
 
-
-class PostgresConfig(BaseModel):
+class PostgresConfig(FrozenBaseModel):
     host: str
     password: str
     user: str
@@ -68,17 +66,17 @@ class CryptoProvider(str, Enum):
     file = "file"
 
 
-class RawCryptoConfig(BaseModel):
+class RawCryptoConfig(FrozenBaseModel):
     provider: Literal[CryptoProvider.raw]
     ecdh_private_key: bytes
 
 
-class FileCryptoConfig(BaseModel):
+class FileCryptoConfig(FrozenBaseModel):
     provider: Literal[CryptoProvider.file]
     ecdh_private_key_path: Path
 
 
-class ProxyConfig(BaseModel):
+class ProxyConfig(FrozenBaseModel):
     http_url: AnyHttpUrl | None = None
     https_url: AnyHttpUrl | None = None
 
@@ -90,6 +88,7 @@ class Settings(BaseSettings):
     postgres: PostgresConfig
     crypto: Annotated[Union[RawCryptoConfig, FileCryptoConfig], Field(discriminator="provider")]
     proxy: Annotated[ProxyConfig, Field(default_factory=ProxyConfig)]
+    extra_ca_certs: Path | None = None
 
     model_config = SettingsConfigDict(
         frozen=True,

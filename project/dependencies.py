@@ -124,12 +124,13 @@ def get_ssl_context(
         ctx.load_verify_locations(cafile=settings.extra_ca_certs)
     return ctx
 
+
 ProxyMount = dict[str, httpx.HTTPTransport] | None
 
 
 def get_proxy_mounts(
-        settings: Annotated[Settings, Depends(get_settings)],
-        ssl_context: Annotated[ssl.SSLContext, Depends(get_ssl_context)]
+    settings: Annotated[Settings, Depends(get_settings)],
+    ssl_context: Annotated[ssl.SSLContext, Depends(get_ssl_context)],
 ):
     proxy = settings.proxy
     proxy_mounts = {}

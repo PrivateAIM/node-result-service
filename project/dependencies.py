@@ -114,36 +114,6 @@ def get_client_id(
         raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="JWT is malformed")
 
 
-ProxyMount = dict[str, httpx.HTTPTransport] | None
-
-
-def get_proxy_mounts(settings: Annotated[Settings, Depends(get_settings)]):
-    proxy = settings.proxy
-    proxy_mounts = {}
-
-    http_proxy_set = proxy.http_url is not None
-    https_proxy_set = proxy.https_url is not None
-
-    if http_proxy_set and https_proxy_set:
-        # if two urls are provided, set them for each mode of transport individually
-        proxy_mounts["http://"] = httpx.HTTPTransport(proxy=str(proxy.http_url))
-        proxy_mounts["https://"] = httpx.HTTPTransport(proxy=str(proxy.https_url))
-    elif not http_proxy_set and not https_proxy_set:
-        # if no urls are provided, do nothing
-        pass
-    else:
-        # if one url is provided, use it for both modes of transport
-        proxy_url = str(proxy.http_url) if http_proxy_set else str(proxy.https_url)
-
-        proxy_mounts["http://"] = httpx.HTTPTransport(proxy=proxy_url)
-        proxy_mounts["https://"] = httpx.HTTPTransport(proxy=proxy_url)
-
-    if len(proxy_mounts) == 0:
-        return None
-
-    return proxy_mounts
-
-
 @lru_cache
 def get_ssl_context(
     settings: Annotated[Settings, Depends(get_settings)],
@@ -153,6 +123,39 @@ def get_ssl_context(
     if settings.extra_ca_certs is not None:
         ctx.load_verify_locations(cafile=settings.extra_ca_certs)
     return ctx
+
+
+ProxyMount = dict[str, httpx.HTTPTransport] | None
+
+
+def get_proxy_mounts(
+    settings: Annotated[Settings, Depends(get_settings)],
+    ssl_context: Annotated[ssl.SSLContext, Depends(get_ssl_context)],
+):
+    proxy = settings.proxy
+    proxy_mounts = {}
+
+    http_proxy_set = proxy.http_url is not None
+    https_proxy_set = proxy.https_url is not None
+
+    if http_proxy_set and https_proxy_set:
+        # if two urls are provided, set them for each mode of transport individually
+        proxy_mounts["http://"] = httpx.HTTPTransport(proxy=str(proxy.http_url))
+        proxy_mounts["https://"] = httpx.HTTPTransport(proxy=str(proxy.https_url), verify=ssl_context)
+    elif not http_proxy_set and not https_proxy_set:
+        # if no urls are provided, do nothing
+        pass
+    else:
+        # if one url is provided, use it for both modes of transport
+        proxy_url = str(proxy.http_url) if http_proxy_set else str(proxy.https_url)
+
+        proxy_mounts["http://"] = httpx.HTTPTransport(proxy=proxy_url)
+        proxy_mounts["https://"] = httpx.HTTPTransport(proxy=proxy_url, verify=ssl_context)
+
+    if len(proxy_mounts) == 0:
+        return None
+
+    return proxy_mounts
 
 
 def get_flame_hub_auth_flow(

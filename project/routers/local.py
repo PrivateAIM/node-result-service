@@ -217,7 +217,7 @@ async def retrieve_intermediate_result_from_local(
     settings: Annotated[Settings, Depends(get_settings)],
     minio: Annotated[Minio, Depends(get_local_minio)],
 ):
-    """Geta local result as file."""
+    """Get a local result as file."""
     try:
         response = minio.get_object(
             settings.minio.bucket,

@@ -187,58 +187,81 @@ def storage_client(password_auth_client, ssl_context):
 
 
 @pytest.fixture
-def project_id(core_client):
+def project_id_factory(core_client):
+    project_ids = []
+
     preferred_base_image_name = os.environ.get("PYTEST__PREFERRED_BASE_MASTER_IMAGE", "python/base")
-    master_images = core_client.find_master_images(filter={"path": preferred_base_image_name})
+    master_image = core_client.find_master_images(filter={"path": preferred_base_image_name}).pop()
 
-    if len(master_images) != 1:
-        raise ValueError(f"expected single master image, got {len(master_images)}")
+    def _factory():
+        project_name = next_prefixed_name()
+        project = core_client.create_project(project_name, master_image)
 
-    project_name = next_prefixed_name()
-    project = core_client.create_project(project_name, master_images.pop())
+        # check that project was successfully created
+        assert project.name == project_name
 
-    # check that project was successfully created
-    assert project.name == project_name
+        # check that project can be retrieved
+        project_get = core_client.get_project(project.id)
+        assert project_get.id == project.id
 
-    # check that project can be retrieved
-    project_get = core_client.get_project(project.id)
-    assert project_get.id == project.id
+        # check that project appears in list
+        assert len(core_client.find_projects(filter={"id": project.id})) == 1
 
-    # check that project appears in list
-    assert len(core_client.find_projects(filter={"id": project.id})) == 1
+        project_ids.append(project.id)
 
-    yield project.id
+        return project.id
 
-    # check that project can be deleted
-    core_client.delete_project(project.id)
+    yield _factory
 
-    # check that project is no longer found
-    assert core_client.get_project(project.id) is None
+    for project_id in project_ids:
+        # check that project can be deleted
+        core_client.delete_project(project_id)
+
+        # check that project is no longer found
+        assert core_client.get_project(project_id) is None
 
 
 @pytest.fixture
-def analysis_id(core_client, project_id):
-    analysis_name = next_prefixed_name()
-    analysis = core_client.create_analysis(project_id, analysis_name)
+def project_id(project_id_factory):
+    return project_id_factory()
 
-    # check that analysis was created
-    assert analysis.name == analysis_name
-    assert analysis.project_id == project_id
 
-    # check that GET on analysis works
-    analysis_get = core_client.get_analysis(analysis.id)
-    assert analysis_get.id == analysis.id
+@pytest.fixture
+def analysis_id_factory(core_client, project_id):
+    analysis_ids = []
 
-    # check that analysis appears in list
-    assert len(core_client.find_analyses(filter={"id": analysis.id})) == 1
+    def _factory(_project_id=project_id):
+        analysis_name = next_prefixed_name()
+        analysis = core_client.create_analysis(_project_id, analysis_name)
 
-    yield analysis.id
+        # check that analysis was created
+        assert analysis.name == analysis_name
+        assert analysis.project_id == _project_id
 
-    # check that DELETE analysis works
-    core_client.delete_analysis(analysis.id)
+        # check that GET on analysis works
+        analysis_get = core_client.get_analysis(analysis.id)
+        assert analysis_get.id == analysis.id
 
-    # check that analysis is no longer found
-    assert core_client.get_analysis(analysis.id) is None
+        # check that analysis appears in list
+        assert len(core_client.find_analyses(filter={"id": analysis.id})) == 1
+
+        analysis_ids.append(analysis.id)
+
+        return analysis.id
+
+    yield _factory
+
+    for analysis_id in analysis_ids:
+        # check that DELETE analysis works
+        core_client.delete_analysis(analysis_id)
+
+        # check that analysis is no longer found
+        assert core_client.get_analysis(analysis_id) is None
+
+
+@pytest.fixture
+def analysis_id(analysis_id_factory):
+    return analysis_id_factory()
 
 
 @pytest.fixture()

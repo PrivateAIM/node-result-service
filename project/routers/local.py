@@ -95,8 +95,11 @@ async def submit_intermediate_result_to_local(
                 detail=f"Invalid tag `{tag}`",
             )
 
+    # retrieve project id from analysis
+    project_id = _get_project_id_for_analysis_or_raise(core_client, client_id)
+
     object_id = uuid.uuid4()
-    object_name = f"local/{client_id}/{object_id}"
+    object_name = f"local/{project_id}/{object_id}"
 
     minio.put_object(
         settings.minio.bucket,
@@ -107,9 +110,6 @@ async def submit_intermediate_result_to_local(
     )
 
     if has_tag:
-        # retrieve project id from analysis
-        project_id = _get_project_id_for_analysis_or_raise(core_client, client_id)
-
         with crud.bind_to(db):
             tag, _ = crud.Tag.get_or_create(tag_name=tag, project_id=project_id)
             # TODO more elegant solution for filename being None?
@@ -216,15 +216,23 @@ async def retrieve_intermediate_result_from_local(
     object_id: uuid.UUID,
     settings: Annotated[Settings, Depends(get_settings)],
     minio: Annotated[Minio, Depends(get_local_minio)],
+    core_client: Annotated[flame_hub.CoreClient, Depends(get_core_client)],
 ):
-    """Geta local result as file."""
+    """Get a local result as file."""
+
+    # retrieve project id from analysis
+    project_id = _get_project_id_for_analysis_or_raise(core_client, client_id)
+
     try:
         response = minio.get_object(
             settings.minio.bucket,
-            f"local/{client_id}/{object_id}",
+            f"local/{project_id}/{object_id}",
         )
     except S3Error as e:
-        logger.exception(f"Could not get object `{object_id}` for client `{client_id}`")
+        logger.exception(
+            f"Could not get object `{object_id}` for client `{client_id}` which is associated to project "
+            f"`{project_id}`."
+        )
 
         if e.code == "NoSuchKey":
             raise HTTPException(

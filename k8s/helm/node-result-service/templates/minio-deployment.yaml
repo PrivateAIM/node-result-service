@@ -14,7 +14,7 @@ spec:
     spec:
       containers:
         - name: {{ .Release.Name }}-local-minio
-          image: bitnami/minio:2024.1.16
+          image: bitnamilegacy/minio:2024.1.16
           imagePullPolicy: IfNotPresent
           ports:
             - containerPort: 9000

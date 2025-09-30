@@ -1,6 +1,7 @@
 import uuid
 
 from starlette import status
+import pytest
 
 from project.routers.local import (
     LocalUploadResponse,
@@ -8,6 +9,9 @@ from project.routers.local import (
 from tests.common.auth import BearerAuth, issue_client_access_token
 from tests.common.helpers import next_random_bytes, eventually
 from tests.common.rest import wrap_bytes_for_request, detail_of
+
+
+pytestmark = pytest.mark.live
 
 
 def test_200_submit_receive_from_local(test_client, rng, core_client, analysis_id):

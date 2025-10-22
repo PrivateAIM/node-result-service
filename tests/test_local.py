@@ -16,7 +16,14 @@ from tests.common.rest import wrap_bytes_for_request, detail_of
 pytestmark = pytest.mark.live
 
 
-def test_200_submit_receive_from_local(test_client, rng, core_client, analysis_id):
+def test_200_submit_receive_from_local(test_client, rng, core_client, project_id, analysis_id, minio, postgres):
+    bucket = os.environ.get("MINIO__BUCKET")
+    n_objects = len(list(minio.list_objects(bucket, prefix=f"local/{project_id}/")))
+    with crud.bind_to(postgres):
+        n_results = len(crud.Result.select())
+        n_tags = len(crud.Tag.select())
+        n_tagged_results = len(crud.TaggedResult.select())
+
     blob = next_random_bytes(rng)
     r = test_client.put(
         "/local",
@@ -25,8 +32,16 @@ def test_200_submit_receive_from_local(test_client, rng, core_client, analysis_i
     )
 
     assert r.status_code == status.HTTP_200_OK
-    model = LocalUploadResponse(**r.json())
 
+    # Check that there is exactly one new object inside the MinIO bucket, but no new database entries since the result
+    # is untagged.
+    assert len(list(minio.list_objects(bucket, prefix=f"local/{project_id}/"))) == n_objects + 1
+    with crud.bind_to(postgres):
+        assert len(crud.Result.select()) == n_results
+        assert len(crud.Tag.select()) == n_tags
+        assert len(crud.TaggedResult.select()) == n_tagged_results
+
+    model = LocalUploadResponse(**r.json())
     r = test_client.get(
         model.url.path,
         auth=BearerAuth(issue_client_access_token(analysis_id)),

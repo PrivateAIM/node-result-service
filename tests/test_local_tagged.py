@@ -51,11 +51,6 @@ def test_is_valid_tag(pattern, expected):
 
 
 def test_200_create_tagged_upload(test_client, rng, analysis_id, core_client):
-    def _analysis_exists():
-        return core_client.get_analysis(analysis_id) is not None
-
-    assert eventually(_analysis_exists)
-
     # use global random here to generate different tags for each run
     tag = "".join(random.choices(string.ascii_lowercase, k=16))
     filename = str(uuid.uuid4())

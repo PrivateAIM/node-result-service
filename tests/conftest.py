@@ -223,14 +223,18 @@ def project_id_factory(core_client):
         project_name = next_prefixed_name()
         project = core_client.create_project(project_name, master_image)
 
-        # check that project was successfully created
+        def _project_exists():
+            return core_client.get_project(project.id) is not None
+
+        assert eventually(_project_exists)
+
+        # Get freshly created project from the Hub.
+        project = core_client.get_project(project.id)
+
+        # Check the project name.
         assert project.name == project_name
 
-        # check that project can be retrieved
-        project_get = core_client.get_project(project.id)
-        assert project_get.id == project.id
-
-        # check that project appears in list
+        # Check that project appears in list.
         assert len(core_client.find_projects(filter={"id": project.id})) == 1
 
         project_ids.append(project.id)
@@ -240,10 +244,9 @@ def project_id_factory(core_client):
     yield _factory
 
     for project_id in project_ids:
-        # check that project can be deleted
         core_client.delete_project(project_id)
 
-        # check that project is no longer found
+        # Check that project is no longer found.
         assert core_client.get_project(project_id) is None
 
 
@@ -260,15 +263,16 @@ def analysis_id_factory(core_client, project_id):
         analysis_name = next_prefixed_name()
         analysis = core_client.create_analysis(_project_id, analysis_name)
 
-        # check that analysis was created
+        def _analysis_exists():
+            return core_client.get_analysis(analysis.id) is not None
+
+        assert eventually(_analysis_exists)
+
+        # Check name and project ID of the analysis.
         assert analysis.name == analysis_name
         assert analysis.project_id == _project_id
 
-        # check that GET on analysis works
-        analysis_get = core_client.get_analysis(analysis.id)
-        assert analysis_get.id == analysis.id
-
-        # check that analysis appears in list
+        # Check that analysis appears in list.
         assert len(core_client.find_analyses(filter={"id": analysis.id})) == 1
 
         analysis_ids.append(analysis.id)
@@ -278,10 +282,9 @@ def analysis_id_factory(core_client, project_id):
     yield _factory
 
     for analysis_id in analysis_ids:
-        # check that DELETE analysis works
         core_client.delete_analysis(analysis_id)
 
-        # check that analysis is no longer found
+        # Check that analysis is no longer found.
         assert core_client.get_analysis(analysis_id) is None
 
 

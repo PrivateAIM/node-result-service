@@ -27,8 +27,8 @@ class Result(BaseModel):
 
 
 class TaggedResult(BaseModel):
-    tag = pw.ForeignKeyField(Tag, null=False)
-    result = pw.ForeignKeyField(Result, null=False)
+    tag = pw.ForeignKeyField(Tag, null=False, on_delete="CASCADE")
+    result = pw.ForeignKeyField(Result, null=False, on_delete="CASCADE")
 
 
 @contextmanager

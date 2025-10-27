@@ -16,6 +16,7 @@ from project.routers.local import (
 from tests.common.auth import BearerAuth, issue_client_access_token
 from tests.common.helpers import next_random_bytes, eventually, next_prefixed_name
 from tests.common.rest import wrap_bytes_for_request, detail_of
+from tests.common.env import hub_adapter_client_id
 
 pytestmark = pytest.mark.live
 
@@ -180,6 +181,7 @@ def test_200_delete_tagged_results(test_client, core_client, rng, minio, postgre
 
     r = test_client.delete(
         "/local",
+        auth=BearerAuth(issue_client_access_token(hub_adapter_client_id())),
         params={"project_id": project.id},
     )
 

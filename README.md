@@ -60,6 +60,7 @@ The following table shows all available configuration options.
 | PROXY__HTTP_URL               | URL of HTTP proxy<sup>5)</sup>                                                                  |                                |                |
 | PROXY__HTTPS_URL              | URL of HTTPS proxy<sup>5)</sup>                                                                 |                                |                |
 | EXTRA_CA_CERTS                | Path to a certificate bundle containing additional certificates to be added to the SSL context. |                                |                |
+| HUB_ADAPTER_CLIENT_ID         | Keycloak client ID for the Hub Adapter client.                                                  | hub-adapter                    |                |
 
 <sup>1)</sup> Only if `HUB__AUTH__FLOW` is set to `password`  
 <sup>2)</sup> Only if `HUB__AUTH__FLOW` is set to `robot`  

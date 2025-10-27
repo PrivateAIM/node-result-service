@@ -11,6 +11,7 @@ from project.routers.local import (
 from tests.common.auth import BearerAuth, issue_client_access_token
 from tests.common.helpers import next_random_bytes, eventually, next_prefixed_name
 from tests.common.rest import wrap_bytes_for_request, detail_of
+from tests.common.env import hub_adapter_client_id
 
 
 pytestmark = pytest.mark.live
@@ -107,11 +108,41 @@ def test_400_delete_results(test_client, project_id, minio, postgres):
 
     r = test_client.delete(
         "/local",
+        auth=BearerAuth(issue_client_access_token(hub_adapter_client_id())),
         params={"project_id": project_id},
     )
 
     assert r.status_code == status.HTTP_400_BAD_REQUEST
     assert detail_of(r) == f"Project '{project_id}' will not be deleted because it is still available on the Hub."
+
+    # Test that nothing was deleted.
+    assert len(list(minio.list_objects(bucket, prefix=f"local/{project_id}/"))) == n_objects
+    with crud.bind_to(postgres):
+        assert len(crud.Result.select()) == n_results
+        assert len(crud.Tag.select()) == n_tags
+        assert len(crud.TaggedResult.select()) == n_tagged_results
+
+
+def test_403_delete_results(test_client, project_id, minio, postgres):
+    bucket = os.environ.get("MINIO__BUCKET")
+
+    n_objects = len(list(minio.list_objects(bucket, prefix=f"local/{project_id}/")))
+    with crud.bind_to(postgres):
+        n_results = len(crud.Result.select())
+        n_tags = len(crud.Tag.select())
+        n_tagged_results = len(crud.TaggedResult.select())
+
+    client_id = str(uuid.uuid4())
+    r = test_client.delete(
+        "/local",
+        auth=BearerAuth(issue_client_access_token(client_id)),
+        params={"project_id": project_id},
+    )
+
+    assert r.status_code == status.HTTP_403_FORBIDDEN
+    assert (
+        detail_of(r) == f"Only the Hub Adapter client is allowed to delete local results, got client ID '{client_id}'."
+    )
 
     # Test that nothing was deleted.
     assert len(list(minio.list_objects(bucket, prefix=f"local/{project_id}/"))) == n_objects
@@ -147,6 +178,7 @@ def test_200_delete_results(test_client, core_client, rng, minio, postgres):
 
     r = test_client.delete(
         "/local",
+        auth=BearerAuth(issue_client_access_token(hub_adapter_client_id())),
         params={"project_id": project.id},
     )
 

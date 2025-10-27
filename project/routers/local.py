@@ -137,13 +137,21 @@ async def submit_intermediate_result_to_local(
 )
 async def delete_local_results(
     project_id: str,
+    client_id: Annotated[str, Depends(get_client_id)],
     minio: Annotated[Minio, Depends(get_local_minio)],
     db: Annotated[pw.PostgresqlDatabase, Depends(get_postgres_db)],
     core_client: Annotated[flame_hub.CoreClient, Depends(get_core_client)],
     settings: Annotated[Settings, Depends(get_settings)],
 ):
     """Delete all objects in MinIO and all Postgres database entries related to the specified project. Returns a 200 on
-    success and a 400 if the project is still available on the Hub. In that case nothing is deleted at all."""
+    success, a 400 if the project is still available on the Hub and a 403 if it is not the Hub Adapter client that sends
+    the request. In both error cases nothing is deleted at all."""
+    if client_id != settings.hub_adapter_client_id:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail=f"Only the Hub Adapter client is allowed to delete local results, got client ID '{client_id}'.",
+        )
+
     if core_client.get_project(project_id) is not None:
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,

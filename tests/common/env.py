@@ -52,3 +52,7 @@ def async_max_retries():
 
 def async_retry_delay_seconds():
     return __get_env("ASYNC_RETRY_DELAY_SECONDS", "1")
+
+
+def hub_adapter_client_id():
+    return __get_env("HUB_ADAPTER_CLIENT_ID", "hub-adapter")

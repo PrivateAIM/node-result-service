@@ -14,6 +14,7 @@ from jwcrypto import jwk
 from starlette.testclient import TestClient
 from testcontainers.minio import MinioContainer
 from testcontainers.postgres import PostgresContainer
+from minio import Minio
 
 from project.dependencies import get_postgres_db, get_local_minio, get_ecdh_private_key
 from project.server import get_server_instance
@@ -31,40 +32,52 @@ def use_testcontainers():
 
 
 @pytest.fixture(scope="package")
-def override_postgres(use_testcontainers):
-    if not use_testcontainers:
-        yield None
-    else:
+def postgres(use_testcontainers):
+    dbname = os.environ.get("POSTGRES__DB")
+    user = os.environ.get("POSTGRES__USER")
+    password = os.environ.get("POSTGRES__PASSWORD")
+
+    if use_testcontainers:
         with PostgresContainer(
             "postgres:17.2",
-            username=os.environ.get("POSTGRES__USER"),
-            password=os.environ.get("POSTGRES__PASSWORD"),
-            dbname=os.environ.get("POSTGRES__DB"),
+            username=user,
+            password=password,
+            dbname=dbname,
             driver=None,
         ) as postgres:
             pg_url = urllib.parse.urlparse(postgres.get_connection_url())
-
-            def _override_get_postgres_db():
-                return pw.PostgresqlDatabase(
-                    pg_url.path.lstrip("/"),  # trim leading slash
-                    user=pg_url.username,
-                    password=pg_url.password,
-                    host=pg_url.hostname,
-                    port=pg_url.port,
-                )
-
-            yield _override_get_postgres_db
+            return pw.PostgresqlDatabase(
+                pg_url.path.lstrip("/"),  # trim leading slash
+                user=pg_url.username,
+                password=pg_url.password,
+                host=pg_url.hostname,
+                port=pg_url.port,
+            )
+    else:
+        host = os.environ.get("POSTGRES__HOST")
+        port = os.environ.get("POSTGRES__PORT", 5432)
+        return pw.PostgresqlDatabase(dbname, user=user, password=password, host=host, port=port)
 
 
 @pytest.fixture(scope="package")
-def override_minio(use_testcontainers):
+def override_postgres(use_testcontainers, postgres):
     if not use_testcontainers:
         yield None
     else:
-        access_key = os.environ.get("MINIO__ACCESS_KEY")
-        secret_key = os.environ.get("MINIO__SECRET_KEY")
-        bucket = os.environ.get("MINIO__BUCKET")
 
+        def _override_get_postgres_db():
+            return postgres
+
+        yield _override_get_postgres_db
+
+
+@pytest.fixture(scope="package")
+def minio(use_testcontainers):
+    access_key = os.environ.get("MINIO__ACCESS_KEY")
+    secret_key = os.environ.get("MINIO__SECRET_KEY")
+
+    if use_testcontainers:
+        bucket = os.environ.get("MINIO__BUCKET")
         with MinioContainer(
             "minio/minio:RELEASE.2024-12-13T22-19-12Z",
             access_key=access_key,
@@ -72,11 +85,24 @@ def override_minio(use_testcontainers):
         ) as minio:
             client = minio.get_client()
             client.make_bucket(bucket)
+            return client
+    else:
+        endpoint = os.environ.get("MINIO__ENDPOINT")
+        region = os.environ.get("MINIO__REGION")
+        secure = bool(int(os.environ.get("MINIO__USE_SSL")))
+        return Minio(endpoint, access_key=access_key, secret_key=secret_key, region=region, secure=secure)
 
-            def _override_get_local_minio():
-                return client
 
-            yield _override_get_local_minio
+@pytest.fixture(scope="package")
+def override_minio(use_testcontainers, minio):
+    if not use_testcontainers:
+        yield None
+    else:
+
+        def _override_get_local_minio():
+            return minio
+
+        yield _override_get_local_minio
 
 
 @pytest.fixture(scope="package")
@@ -197,14 +223,18 @@ def project_id_factory(core_client):
         project_name = next_prefixed_name()
         project = core_client.create_project(project_name, master_image)
 
-        # check that project was successfully created
+        def _project_exists():
+            return core_client.get_project(project.id) is not None
+
+        assert eventually(_project_exists)
+
+        # Get freshly created project from the Hub.
+        project = core_client.get_project(project.id)
+
+        # Check the project name.
         assert project.name == project_name
 
-        # check that project can be retrieved
-        project_get = core_client.get_project(project.id)
-        assert project_get.id == project.id
-
-        # check that project appears in list
+        # Check that project appears in list.
         assert len(core_client.find_projects(filter={"id": project.id})) == 1
 
         project_ids.append(project.id)
@@ -214,10 +244,9 @@ def project_id_factory(core_client):
     yield _factory
 
     for project_id in project_ids:
-        # check that project can be deleted
         core_client.delete_project(project_id)
 
-        # check that project is no longer found
+        # Check that project is no longer found.
         assert core_client.get_project(project_id) is None
 
 
@@ -234,15 +263,16 @@ def analysis_id_factory(core_client, project_id):
         analysis_name = next_prefixed_name()
         analysis = core_client.create_analysis(_project_id, analysis_name)
 
-        # check that analysis was created
+        def _analysis_exists():
+            return core_client.get_analysis(analysis.id) is not None
+
+        assert eventually(_analysis_exists)
+
+        # Check name and project ID of the analysis.
         assert analysis.name == analysis_name
         assert analysis.project_id == _project_id
 
-        # check that GET on analysis works
-        analysis_get = core_client.get_analysis(analysis.id)
-        assert analysis_get.id == analysis.id
-
-        # check that analysis appears in list
+        # Check that analysis appears in list.
         assert len(core_client.find_analyses(filter={"id": analysis.id})) == 1
 
         analysis_ids.append(analysis.id)
@@ -252,10 +282,9 @@ def analysis_id_factory(core_client, project_id):
     yield _factory
 
     for analysis_id in analysis_ids:
-        # check that DELETE analysis works
         core_client.delete_analysis(analysis_id)
 
-        # check that analysis is no longer found
+        # Check that analysis is no longer found.
         assert core_client.get_analysis(analysis_id) is None
 
 

@@ -130,6 +130,44 @@ async def submit_intermediate_result_to_local(
     )
 
 
+@router.delete(
+    "/",
+    summary="Delete all local results and database entries related to the specified project.",
+    operation_id="deleteLocalResults",
+)
+async def delete_local_results(
+    project_id: str,
+    client_id: Annotated[str, Depends(get_client_id)],
+    minio: Annotated[Minio, Depends(get_local_minio)],
+    db: Annotated[pw.PostgresqlDatabase, Depends(get_postgres_db)],
+    core_client: Annotated[flame_hub.CoreClient, Depends(get_core_client)],
+    settings: Annotated[Settings, Depends(get_settings)],
+):
+    """Delete all objects in MinIO and all Postgres database entries related to the specified project. Returns a 200 on
+    success, a 400 if the project is still available on the Hub and a 403 if it is not the Hub Adapter client that sends
+    the request. In both error cases nothing is deleted at all."""
+    if client_id != settings.hub_adapter_client_id:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail=f"Only the Hub Adapter client is allowed to delete local results, got client ID '{client_id}'.",
+        )
+
+    if core_client.get_project(project_id) is not None:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail=f"Project '{project_id}' will not be deleted because it is still available on the Hub.",
+        )
+
+    object_ids = []
+    for object_ in minio.list_objects(settings.minio.bucket, prefix=f"local/{project_id}/"):
+        minio.remove_object(settings.minio.bucket, object_.object_name)
+        object_ids.append(object_.object_name.split("/")[-1])
+
+    with crud.bind_to(db):
+        crud.Result.delete().where(crud.Result.object_id.in_(object_ids)).execute()
+        crud.Tag.delete().where(crud.Tag.project_id == project_id).execute()
+
+
 @router.get(
     "/tags",
     summary="Get tags for a specific project",

@@ -1,10 +1,12 @@
 import random
 import string
 import uuid
+import os
 
 import pytest
 from starlette import status
 
+from project import crud
 from project.routers.local import (
     is_valid_tag,
     LocalUploadResponse,
@@ -12,8 +14,9 @@ from project.routers.local import (
     LocalTaggedResultListResponse,
 )
 from tests.common.auth import BearerAuth, issue_client_access_token
-from tests.common.helpers import next_random_bytes, eventually
+from tests.common.helpers import next_random_bytes, eventually, next_prefixed_name
 from tests.common.rest import wrap_bytes_for_request, detail_of
+from tests.common.env import hub_adapter_client_id
 
 pytestmark = pytest.mark.live
 
@@ -48,17 +51,19 @@ def test_is_valid_tag(pattern, expected):
     assert is_valid_tag(pattern) == expected
 
 
-def test_200_create_tagged_upload(test_client, rng, analysis_id, core_client):
-    def _analysis_exists():
-        return core_client.get_analysis(analysis_id) is not None
-
-    assert eventually(_analysis_exists)
-
+def test_200_create_tagged_upload(test_client, rng, analysis_id, project_id, core_client, minio, postgres):
     # use global random here to generate different tags for each run
     tag = "".join(random.choices(string.ascii_lowercase, k=16))
     filename = str(uuid.uuid4())
     blob = next_random_bytes(rng)
     auth = BearerAuth(issue_client_access_token(analysis_id))
+
+    bucket = os.environ.get("MINIO__BUCKET")
+    n_objects = len(list(minio.list_objects(bucket, prefix=f"local/{project_id}/")))
+    with crud.bind_to(postgres):
+        n_results = len(crud.Result.select())
+        n_tags = len(crud.Tag.select())
+        n_tagged_results = len(crud.TaggedResult.select())
 
     r = test_client.put(
         "/local",
@@ -68,8 +73,26 @@ def test_200_create_tagged_upload(test_client, rng, analysis_id, core_client):
     )
 
     assert r.status_code == status.HTTP_200_OK
+
     model = LocalUploadResponse(**r.json())
     result_url = model.url
+
+    # Check that there is exactly one new object inside the MinIO bucket and one new entry in each of the database
+    # tables.
+    assert len(list(minio.list_objects(bucket, prefix=f"local/{project_id}/"))) == n_objects + 1
+    with crud.bind_to(postgres):
+        assert len(crud.Result.select()) == n_results + 1
+        assert len(crud.Tag.select()) == n_tags + 1
+        assert len(crud.TaggedResult.select()) == n_tagged_results + 1
+
+        new_results = crud.Result.select().where(crud.Result.client_id == analysis_id)
+        assert len(new_results) == 1
+        assert str(new_results[0].object_id) == str(result_url).split("/")[-1]
+        assert new_results[0].filename == filename
+
+        new_tags = crud.Tag.select().where(crud.Tag.project_id == project_id)
+        assert len(new_tags) == 1
+        assert new_tags[0].tag_name == tag
 
     r = test_client.get(
         "/local/tags",
@@ -133,3 +156,40 @@ def test_404_get_results_by_tag(test_client):
 
     assert r.status_code == status.HTTP_404_NOT_FOUND
     assert detail_of(r) == f"Analysis with ID {rand_uuid} not found"
+
+
+def test_200_delete_tagged_results(test_client, core_client, rng, minio, postgres):
+    project = core_client.create_project(name=next_prefixed_name())
+    analysis = core_client.create_analysis(project_id=project.id, name=next_prefixed_name())
+
+    def _project_and_analysis_exist():
+        return core_client.get_project(project.id) is not None and core_client.get_analysis(analysis.id) is not None
+
+    assert eventually(_project_and_analysis_exist)
+
+    blob = next_random_bytes(rng)
+    tag = "".join(random.choices(string.ascii_lowercase, k=16))
+    test_client.put(
+        "/local",
+        auth=BearerAuth(issue_client_access_token(analysis.id)),
+        files=wrap_bytes_for_request(blob),
+        data={"tag": tag},
+    )
+
+    core_client.delete_analysis(analysis.id)
+    core_client.delete_project(project.id)
+
+    r = test_client.delete(
+        "/local",
+        auth=BearerAuth(issue_client_access_token(hub_adapter_client_id())),
+        params={"project_id": project.id},
+    )
+
+    assert r.status_code == status.HTTP_200_OK
+
+    bucket = os.environ.get("MINIO__BUCKET")
+    assert len(list(minio.list_objects(bucket, prefix=f"local/{project.id}/"))) == 0
+
+    with crud.bind_to(postgres):
+        assert len(crud.Result.select().where(crud.Result.client_id == analysis.id)) == 0
+        assert len(crud.Tag.select().where(crud.Tag.project_id == project.id)) == 0

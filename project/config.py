@@ -89,6 +89,7 @@ class Settings(BaseSettings):
     crypto: Annotated[Union[RawCryptoConfig, FileCryptoConfig], Field(discriminator="provider")]
     proxy: Annotated[ProxyConfig, Field(default_factory=ProxyConfig)]
     extra_ca_certs: Path | None = None
+    hub_adapter_client_id: str = "hub-adapter"
 
     model_config = SettingsConfigDict(
         frozen=True,
